@@ -11,6 +11,7 @@ from dagster import (
     DynamicPartitionsDefinition
 )
 from ndl_core_data_pipeline.resources.api_client import RateLimitedApiClient
+from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_to_iso8601_utc
 
 gov_uk_batches = DynamicPartitionsDefinition(name="gov_uk_search_batches")
 
@@ -72,7 +73,78 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
 
     context.log.info(f"Processing {partition_key}: Items {start_offset} to {start_offset + BATCH_SIZE}")
 
-    # 2. Fetch the Search Results for this batch
+    # 2. Search batch links
+    results = search_batch(api_gov_uk, start_offset)
+
+    if not results:
+        context.log.warning(f"[{partition_key}] No results found. Batch might be empty.")
+        return None
+
+    # 3. Retrieve the Content
+    files_processed = 0
+    files_skipped = 0
+    saved_files = []
+    for item in results:
+        link = item.get("link")
+
+        safe_name = link.strip("/").replace("/", "_")
+        target_file_path = f"{RAW_DATA_PATH}/{safe_name}.json"
+        if os.path.exists(target_file_path):
+            files_skipped += 1
+            continue
+
+        orgs = item.get("organisations", [])
+        org_titles = [org["organisation_brand"] for org in orgs if "title" in org]
+        metadata = {
+            "link": "https://www.gov.uk" + item.get("link"),
+            "title": item.get("title"),
+            "description": item.get("description"),
+            "source": "gov.uk",
+            "creator": org_titles,
+            "public_time": parse_to_iso8601_utc(item.get("public_timestamp")),
+            "collection_time": now_iso8601_utc(),
+            "open_type": "Open Government",
+            "license:": "Open Government Licence v3.0",
+            "language": "en",
+            "format": "text"
+        }
+
+        # get content
+        content_url = f"/api/content{link}"
+        content_resp = api_gov_uk.get(content_url)
+        content = content_resp.get("details", {}).get("body", "")
+        if content:
+            metadata["first_creation_time"]= parse_to_iso8601_utc(content_resp.get("first_published_at", ""))
+            full_record = {
+                "metadata": metadata,
+                "text": content,
+                "full_api_response": content_resp
+            }
+
+            save_raw_file(full_record, target_file_path)
+
+            files_processed += 1
+            saved_files.append(link)
+            if files_processed % 10 == 0:
+                context.log.debug(f"[{partition_key}] processed {files_processed} items...")
+
+    context.add_output_metadata({
+        "batch_index": batch_index,
+        "newly_saved": files_processed,
+        "skipped_existing": files_skipped,
+        "total_in_batch": len(results)
+    })
+    return f"Batch {batch_index} Complete"
+
+
+def save_raw_file(full_record: dict,target_file_path: str) -> int:
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=RAW_DATA_PATH, suffix=".tmp") as tmp:
+        json.dump(full_record, tmp, indent=2)
+        tmp_path = tmp.name
+    os.rename(tmp_path, target_file_path)
+
+
+def search_batch(api_gov_uk: RateLimitedApiClient, start_offset: int) -> Any:
     search_params = {
         "q": "",
         "filter_public_timestamp": f"from:{CRAWL_FROM_DATE}",
@@ -82,60 +154,4 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
     }
     resp = api_gov_uk.get("/api/search.json", params=search_params)
     results = resp.get("results", [])
-
-    if not results:
-        context.log.warning(f"[{partition_key}] No results found. Batch might be empty.")
-        return
-
-    # 3. Retrieve the Content
-    files_processed = 0
-    files_skipped = 0
-
-    saved_files = []
-    for item in results:
-        link = item.get("link")
-        # skip existing content
-        safe_name = link.strip("/").replace("/", "_")
-        target_file_path = f"{RAW_DATA_PATH}/{safe_name}.json"
-        if os.path.exists(target_file_path):
-            files_skipped += 1
-            continue
-
-        orgs = item.get("organisations", [])
-        org_titles = [org["title"] for org in orgs if "title" in org]
-        metadata = {
-            "link": item.get("link"),
-            "title": item.get("title"),
-            "description": item.get("description"),
-            "public_timestamp": item.get("public_timestamp"),
-            "organisations": org_titles
-        }
-
-        # get content
-        content_url = f"/api/content{link}"
-        content_resp = api_gov_uk.get(content_url)
-        full_record = {
-            "metadata": item,
-            "content": content_resp.get("details", {}).get("body", ""),
-            "full_api_response": content_resp
-        }
-
-        # Atomic file write
-        with tempfile.NamedTemporaryFile("w", delete=False, dir=RAW_DATA_PATH, suffix=".tmp") as tmp:
-            json.dump(full_record, tmp, indent=2)
-            tmp_path = tmp.name
-        os.rename(tmp_path, target_file_path)
-        if files_processed % 10 == 0:
-            context.log.debug(f"[{partition_key}] processed {files_processed} items...")
-
-        files_processed += 1
-
-        saved_files.append(link)
-
-    context.add_output_metadata({
-        "batch_index": batch_index,
-        "newly_saved": files_processed,
-        "skipped_existing": files_skipped,
-        "total_in_batch": len(results)
-    })
-    return f"Batch {batch_index} Complete"
+    return results
