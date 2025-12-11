@@ -18,3 +18,13 @@ def parse_to_iso8601_utc(date_str: str) -> str:
     else:
         dt = dt.astimezone(timezone.utc)
     return dt.isoformat()
+
+def parse_iso_to_ts(ts: str) -> datetime:
+    """
+    Helper to parse ISO 8601 string to datetime object.
+    :param ts: input timestamp string
+    :return: timestamp as datetime object
+    """
+    if ts.endswith("Z"):
+        ts = ts[:-1] + "+00:00"
+    return datetime.fromisoformat(ts)

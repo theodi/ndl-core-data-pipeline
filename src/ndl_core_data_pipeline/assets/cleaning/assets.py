@@ -3,7 +3,7 @@ import glob
 import json
 from dagster import asset, AssetExecutionContext
 
-RAW_GOV_UK_PATH = "data/raw/gov_uk"
+RAW_GOV_UK_PATH = "data/raw/gov_uk_old"
 
 
 @asset(

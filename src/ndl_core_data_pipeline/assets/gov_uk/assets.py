@@ -2,6 +2,8 @@ import os
 import math
 import json
 import tempfile
+from datetime import timezone
+from typing import List, Optional, Dict, Any
 from dagster import (
     asset,
     AssetExecutionContext,
@@ -11,7 +13,7 @@ from dagster import (
     DynamicPartitionsDefinition
 )
 from ndl_core_data_pipeline.resources.api_client import RateLimitedApiClient
-from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_to_iso8601_utc
+from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_to_iso8601_utc, parse_iso_to_ts
 
 gov_uk_batches = DynamicPartitionsDefinition(name="gov_uk_search_batches")
 
@@ -83,7 +85,6 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
     # 3. Retrieve the Content
     files_processed = 0
     files_skipped = 0
-    saved_files = []
     for item in results:
         link = item.get("link")
 
@@ -93,8 +94,13 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
             files_skipped += 1
             continue
 
-        orgs = item.get("organisations", [])
-        org_titles = [org["organisation_brand"] for org in orgs if "title" in org]
+        if item.get("primary_publishing_organisation", []):
+            orgs = item.get("primary_publishing_organisation", [])
+            org_titles = [org.get("title", "") for org in orgs if "title" in org]
+        else:
+            orgs = item.get("organisations", [])
+            org_titles = [org.get("title", "") for org in orgs if "title" in org]
+
         metadata = {
             "link": "https://www.gov.uk" + item.get("link"),
             "title": item.get("title"),
@@ -102,10 +108,11 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
             "source": "gov.uk",
             "creator": org_titles,
             "public_time": parse_to_iso8601_utc(item.get("public_timestamp")),
+            "first_publish_time": get_oldest_change_history(item.get("details", {}).get("change_history", []), parse_to_iso8601_utc(item.get("first_published_at", item.get("public_timestamp", "")))),
             "collection_time": now_iso8601_utc(),
             "open_type": "Open Government",
             "license:": "Open Government Licence v3.0",
-            "language": "en",
+            "language": item.get("locale", "en"),
             "format": "text"
         }
 
@@ -114,7 +121,6 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
         content_resp = api_gov_uk.get(content_url)
         content = content_resp.get("details", {}).get("body", "")
         if content:
-            metadata["first_creation_time"]= parse_to_iso8601_utc(content_resp.get("first_published_at", ""))
             full_record = {
                 "metadata": metadata,
                 "text": content,
@@ -124,7 +130,6 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
             save_raw_file(full_record, target_file_path)
 
             files_processed += 1
-            saved_files.append(link)
             if files_processed % 10 == 0:
                 context.log.debug(f"[{partition_key}] processed {files_processed} items...")
 
@@ -137,7 +142,10 @@ def gov_uk_process_batch(context: AssetExecutionContext, api_gov_uk: RateLimited
     return f"Batch {batch_index} Complete"
 
 
-def save_raw_file(full_record: dict,target_file_path: str) -> int:
+def save_raw_file(full_record: dict,target_file_path: str):
+    """
+    Write JSON safely to a temp file then atomically rename.
+    """
     with tempfile.NamedTemporaryFile("w", delete=False, dir=RAW_DATA_PATH, suffix=".tmp") as tmp:
         json.dump(full_record, tmp, indent=2)
         tmp_path = tmp.name
@@ -155,3 +163,25 @@ def search_batch(api_gov_uk: RateLimitedApiClient, start_offset: int) -> Any:
     resp = api_gov_uk.get("/api/search.json", params=search_params)
     results = resp.get("results", [])
     return results
+
+def get_oldest_change_history(change_history: List[Dict], default_value: str) -> Optional[str]:
+    """
+    Return the oldest `public_timestamp` from change_history as an ISO8601 string,
+    or None if no valid timestamps found.
+    """
+    datetimes = [parse_iso_to_ts(default_value)]
+    for item in change_history:
+        ts = item.get("public_timestamp")
+        if not ts:
+            continue
+        try:
+            dt = parse_iso_to_ts(ts)
+        except Exception:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        datetimes.append(dt)
+    if not datetimes:
+        return None
+    oldest = min(datetimes)
+    return parse_to_iso8601_utc(oldest.astimezone(timezone.utc).isoformat())
