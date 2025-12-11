@@ -3,11 +3,13 @@ import requests
 import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from typing import Optional
 
 
 class RateLimitedApiClient(ConfigurableResource):
     base_url: str
-    rate_limit_per_second: float = 10.0
+    # If None or <= 0, rate limiting is disabled
+    rate_limit_per_second: Optional[float] = None
 
     def get_session(self):
         session = requests.Session()
@@ -22,7 +24,8 @@ class RateLimitedApiClient(ConfigurableResource):
         return session
 
     def get(self, endpoint, params=None):
-        time.sleep(1.0 / self.rate_limit_per_second)
+        if getattr(self, "rate_limit_per_second", None) and self.rate_limit_per_second > 0:
+            time.sleep(1.0 / self.rate_limit_per_second)
 
         url = endpoint if endpoint.startswith("http") else f"{self.base_url}{endpoint}"
 

@@ -46,6 +46,6 @@ defs = Definitions(
     sensors=[SensorDefinition(name="trigger_gov_uk_batches", evaluation_fn=gov_uk_sensor, job=batch_job)],
     resources={
         "api_gov_uk": RateLimitedApiClient(base_url="https://www.gov.uk", rate_limit_per_second=10.0),
-        "api_data_gov": RateLimitedApiClient(base_url="https://data.gov.uk", rate_limit_per_second=2.0),
+        "api_data_gov": RateLimitedApiClient(base_url="https://data.gov.uk", rate_limit_per_second=None),
     }
 )
