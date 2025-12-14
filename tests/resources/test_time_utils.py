@@ -36,7 +36,7 @@ class TestTimeUtils(unittest.TestCase):
         self.assertEqual(out, "2025-01-27T10:26:06+00:00")
 
     def test_parse_space_separator(self):
-        # fromisoformat accepts space as separator too
+        # from iso format accepts space as separator too
         inp = "2025-01-27 10:26:06"
         out = parse_to_iso8601_utc(inp)
         self.assertTrue(out.endswith("+00:00"))
@@ -48,6 +48,13 @@ class TestTimeUtils(unittest.TestCase):
         self.assertTrue(out.endswith("+00:00"))
         # Keep milliseconds
         self.assertEqual(out, "2025-01-27T10:26:06.123+00:00")
+
+    def test_simple_date(self):
+        inp = "2021-11-01"
+        out = parse_to_iso8601_utc(inp)
+        self.assertTrue(out.endswith("+00:00"))
+        # Keep milliseconds
+        self.assertEqual(out, "2021-11-01T00:00:00+00:00")
 
     def test_empty_string(self):
         inp = ""
