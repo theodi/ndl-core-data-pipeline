@@ -21,7 +21,7 @@ from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_t
 # - All License types: https://ckan.publishing.service.gov.uk/api/3/action/package_search?facet.field=[%22license_id%22]&rows=0
 # - List the most recent N public "government" category datasets: https://ckan.publishing.service.gov.uk/api/action/package_search?fq=theme-primary:government%20AND%20license_id:(uk-ogl%20OR%20cc-by)&sort=metadata_created%20desc&rows=10
 
-RESULTS_COUNT_PER_CATEGORY = 10
+RESULTS_COUNT_PER_CATEGORY = 20
 RESULTS_COUNT_FOR_ENVIRONMENT = 100
 
 PUBLIC_LICENCES = ["ogl", "uk-ogl", "OGL-UK-3.0", "cc-by", "other-pd", "other-open", "odc-pddl", "odc-odbl", "odc-by", "cc-nc", "other-nc", "cc-zero"]
@@ -116,7 +116,10 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
     for pkg in results:
         pkg_id = pkg.get("id") or pkg.get("name") or pkg.get("title", "package")
         org = pkg.get("organization") or {}
-        tags = set(pkg.get("tags", {}))
+        tags_list = []
+        if pkg.get("tags"):
+            tags_list = [t.get("name") for t in pkg.get("tags")]
+        tags = set(tags_list)
         tags.add(category)
 
         meta: Dict[str, Any] = {
@@ -164,7 +167,9 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
                 resource_metadata["title"] = res.get("name")
 
             if not res_url:
-                raise Exception(f"Package {pkg_id} resource #{i} has no URL")
+                context.log.warning(f"Package {pkg_id} resource #{i} has no URL")
+                continue
+            context.log.info(f"Downloading resource {res_id} from package {pkg_id}: {res_url}")
 
             # Download using the API client; let exceptions propagate to fail the asset
             saved_path, actual_name, ext = api_data_gov.download_file(res_url, pkg_dir, preferred_name=res_id)
