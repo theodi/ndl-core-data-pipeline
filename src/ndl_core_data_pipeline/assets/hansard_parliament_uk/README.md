@@ -29,6 +29,12 @@ mkdir -p ./data/raw/hansard_gov_uk
 rsync -az --progress --exclude '.svn' --exclude 'tmp/' --relative 'data.theyworkforyou.com::parldata/scrapedxml/lordswrans/lordswrans2025-*' ./data/raw/hansard_gov_uk/
 ```
 
+To convert the XML files to JSON format, you can use the parser script:
+
+```
+src/ndl_core_data_pipeline/assets/hansard_parliament_uk/parser.py
+```
+
 # Data Source Details
 
 https://www.theyworkforyou.com/pwdata/scrapedxml/
