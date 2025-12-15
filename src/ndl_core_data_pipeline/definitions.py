@@ -73,5 +73,6 @@ defs = Definitions(
     resources={
         "api_gov_uk": RateLimitedApiClient(base_url="https://www.gov.uk", rate_limit_per_second=10.0),
         "api_data_gov": RateLimitedApiClient(base_url="https://data.gov.uk", rate_limit_per_second=None),
+        "api_legislation": RateLimitedApiClient(base_url="https://www.legislation.gov.uk", rate_limit_per_second=None),
     }
 )
