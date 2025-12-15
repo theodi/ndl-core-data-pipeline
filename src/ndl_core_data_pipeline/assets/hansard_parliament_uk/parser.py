@@ -4,6 +4,9 @@ Transforms HoC speeches from XML to json files.
 
 Traverses the scrapedxml directory, parses each XML file, and extracts speeches along with metadata into scrapedjson directory in the same folder structure.
 """
+import re
+from datetime import datetime
+from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_to_iso8601_utc, parse_iso_to_ts
 
 def parser(source_dir=None, dest_dir=None, limit=None, single_file=None, dry_run=False):
     """Parse XML files under source_dir and write JSON files under dest_dir.
@@ -24,11 +27,9 @@ def parser(source_dir=None, dest_dir=None, limit=None, single_file=None, dry_run
     import json
     from lxml import etree
 
-
-    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-    default_source = os.path.join(CURRENT_DIR, '../../../../data/raw/hansard_gov_uk/scrapedxml/')
-    default_dest = os.path.join(CURRENT_DIR, '../../../../data/raw/hansard_gov_uk/scrapedjson/')
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    default_source = os.path.join(current_dir, '../../../../data/raw/hansard_gov_uk/scrapedxml/')
+    default_dest = os.path.join(current_dir, '../../../../data/raw/hansard_gov_uk/scrapedjson/')
 
     if source_dir is None:
         source_dir = default_source
@@ -47,7 +48,7 @@ def parser(source_dir=None, dest_dir=None, limit=None, single_file=None, dry_run
         return filenamelist
 
     if single_file:
-        # allow passing a single file to process
+        # allow passing a single file for testing
         single_file_path = single_file
         if not os.path.isabs(single_file_path):
             single_file_path = os.path.abspath(single_file_path)
@@ -87,13 +88,24 @@ def parser(source_dir=None, dest_dir=None, limit=None, single_file=None, dry_run
             printProgressBar(idx + 1, total, prefix='Parsing...', suffix='Complete', length=50)
             continue
 
+        # debates vs wrans vs lordswrans
+        relative_path = os.path.relpath(filename, source_dir)
+        hansard_txt_type = inner_folder = os.path.basename(os.path.dirname(relative_path))
         jsondoc = {
             'meta': {
-                'source_file': os.path.relpath(filename, source_dir),
-                'root_tag': root.tag,
-                'root_attrib': dict(root.attrib)
+                "link": "https://www.theyworkforyou.com/pwdata/scrapedxml/" + str(os.path.relpath(filename, source_dir)),
+                "title": str(os.path.splitext(relative_path)[0]),
+                "description": "UK Parliament Hansard data: " + str(os.path.splitext(relative_path)[0]),
+                "source": "hansard.parliament.uk",
+                "creator": "hansard.parliament.uk",
+                "public_time": extract_date(relative_path),
+                "collection_time": now_iso8601_utc(),
+                "open_type": "Open Government",
+                "license:": "Open Government Licence v3.0",
+                "language": "en",
+                "format": "text"
             },
-            'speeches': []
+            'texts': []
         }
 
         # Determine parser behavior by scanning element local names (namespace-agnostic)
@@ -110,9 +122,9 @@ def parser(source_dir=None, dest_dir=None, limit=None, single_file=None, dry_run
             print(f"\nWARNING: File {filename} contains both <speech> and <ques> elements; defaulting to <speech> processing.")
 
         if has_speech:
-            jsondoc['speeches'] = process_speech(root)
+            jsondoc['texts'] = process_speech(root)
         elif has_ques:
-            jsondoc['speeches'] = process_qa(root)
+            jsondoc['texts'] = process_qa(root)
         else:
             print(f"\nWARNING: No <speech> or <ques> elements found in {filename}, skipping file.")
             printProgressBar(idx + 1, total, prefix='Parsing...', suffix='Complete', length=50)
@@ -229,9 +241,9 @@ def process_speech(root):
 
         # append this speech segment, separated by ' \p ' (coerce current text to str to satisfy type checkers)
         if segment_text:
-            current['text'] = str(current.get('text', '')) + ' \\p ' + f"{name}:{segment_text}"
+            current['text'] = str(current.get('text', '')) + ' \\p ' + f"{name}: {segment_text}"
         else:
-            current['text'] = str(current.get('text', '')) + ' \\p ' + f"{name}:"
+            current['text'] = str(current.get('text', '')) + ' \\p ' + f"{name}: "
 
     # append any open conversation
     if current is not None:
@@ -249,82 +261,100 @@ def process_qa(root):
     - Build flat_speeches preserving order, including speakername where available and concatenated paragraph text
     - Group flat_speeches into conversations starting at Start Question entries and appending subsequent answers until next Start Question
     """
-    flat_speeches = []
-
-    for elem in root.iter():
-        tag = _strip_tag(elem.tag)
-        if tag in ('ques', 'question'):
-            typ = 'Start Question'
-        elif tag in ('ans', 'answer'):
-            typ = 'Answer'
-        else:
-            continue
-
-        sattrib = dict(elem.attrib)
-        # many wrans files use different attribute names; try common ones
-        speakername = sattrib.get('speakername') or sattrib.get('speaker') or sattrib.get('who') or sattrib.get('name')
-
-        # collect paragraph texts within the element
-        para_texts = []
-        for p in elem.findall('.//p'):
-            try:
-                p_text = ''.join(p.itertext()).strip()
-            except Exception:
-                p_text = (p.text or '').strip()
-            if p_text:
-                para_texts.append(p_text)
-
-        full_text = '\n\n'.join(para_texts)
-
-        flat_speeches.append({
-            'id': sattrib.get('id'),
-            'speakername': speakername,
-            'person_id': sattrib.get('person_id') or sattrib.get('personid') or sattrib.get('person'),
-            'type': typ,
-            'text': full_text,
-        })
-
-    # Group into conversations very similarly to process_speech
+    # New approach: treat <ques> as Start Question and <reply> (or common variants) as the answering tag.
+    # Walk the document in order, when we see a ques element, collect any following reply elements until
+    # the next ques. If no reply is present for a ques, ignore that ques.
+    elements = list(root.iter())
     conversations = []
-    current = None
-    for sp in flat_speeches:
-        t = (sp.get('type') or '').strip()
-        name = sp.get('speakername') or 'UNKNOWN'
-        seg = sp.get('text', '')
+    i = 0
+    n = len(elements)
+    while i < n:
+        el = elements[i]
+        tag = _strip_tag(el.tag)
+        if tag in ('ques', 'question'):
+            # collect question speaker and text
+            q_attrib = dict(el.attrib)
+            q_speaker = q_attrib.get('speakername') or q_attrib.get('speaker') or q_attrib.get('who') or q_attrib.get('name') or 'UNKNOWN'
+            # gather question paragraph text
+            q_paras = []
+            for p in el.findall('.//p'):
+                try:
+                    t = ''.join(p.itertext()).strip()
+                except Exception:
+                    t = (p.text or '').strip()
+                if t:
+                    q_paras.append(t)
+            q_text = '\n\n'.join(q_paras)
 
-        if t.lower().startswith('startquestion'):
-            if current is not None:
-                conversations.append(current)
-            current = {
-                'start_id': sp.get('id'),
+            # scan forward to collect replies until next ques
+            replies = []
+            j = i + 1
+            while j < n:
+                jel = elements[j]
+                jtag = _strip_tag(jel.tag)
+                if jtag in ('ques', 'question'):
+                    break
+                if jtag in ('reply', 'ans', 'answer'):
+                    r_attrib = dict(jel.attrib)
+                    r_speaker = r_attrib.get('speakername') or r_attrib.get('speaker') or r_attrib.get('who') or r_attrib.get('name') or 'UNKNOWN'
+                    r_paras = []
+                    for p in jel.findall('.//p'):
+                        try:
+                            rt = ''.join(p.itertext()).strip()
+                        except Exception:
+                            rt = (p.text or '').strip()
+                        if rt:
+                            r_paras.append(rt)
+                    r_text = '\n\n'.join(r_paras)
+                    replies.append((r_speaker, r_text))
+                j += 1
+
+            # If there are no replies for this ques, ignore it (per spec)
+            if not replies:
+                i = j
+                continue
+
+            # Build conversation record: include question then replies
+            conv = {
+                'start_id': q_attrib.get('id'),
                 'speakers': [],
                 'text': ''
             }
-            current.setdefault('speakers', [])
-            speakers = current.setdefault('speakers', [])
-            if name not in speakers:
-                speakers.append(name)
-            current['text'] = f"{name}:{seg}" if seg else f"{name}:"
+            # add question speaker
+            conv.setdefault('speakers', [])
+            if q_speaker not in conv['speakers']:
+                conv['speakers'].append(q_speaker)
+            conv['text'] = f"{q_speaker}:{q_text}" if q_text else f"{q_speaker}:"
+
+            # append replies
+            for r_speaker, r_text in replies:
+                if r_speaker not in conv['speakers']:
+                    conv['speakers'].append(r_speaker)
+                if r_text:
+                    conv['text'] = conv['text'] + ' \\p ' + f"{r_speaker}: {r_text}"
+                else:
+                    conv['text'] = conv['text'] + ' \\p ' + f"{r_speaker}: "
+
+            conversations.append(conv)
+            # continue from j (next unprocessed element)
+            i = j
             continue
 
-        if current is None:
-            # ignore answers before first question
-            continue
-
-        assert current is not None
-        speakers = current.setdefault('speakers', [])
-        if name not in speakers:
-            speakers.append(name)
-        if seg:
-            current['text'] = str(current.get('text', '')) + ' \\p ' + f"{name}:{seg}"
-        else:
-            current['text'] = str(current.get('text', '')) + ' \\p ' + f"{name}:"
-
-    if current is not None:
-        conversations.append(current)
+        i += 1
 
     return conversations
 
+def extract_date(filename):
+    """
+    Extract date from filename in YYYY-MM-DD format.
+    :param filename:
+    :return:
+    """
+    match = re.search(r"\d{4}-\d{2}-\d{2}", filename)
+    if not match:
+        return None
+
+    return parse_to_iso8601_utc(match.group())
 
 if __name__ == '__main__':
     # Local configuration - edit these values as needed before running the module
@@ -334,7 +364,10 @@ if __name__ == '__main__':
     LIMIT = None           # e.g. 10 to process only 10 files
     SINGLE_FILE = None     # e.g. '/abs/path/to/data/raw/hansard_gov_uk/scrapedxml/debates/....xml'
     DRY_RUN = False        # set True to parse but not write files
-    SINGLE_FILE = "/Users/huseyinkir/workspaces/workspace1/ndl-core-data-pipeline/data/raw/hansard_gov_uk/scrapedxml/debates/debates2025-01-06b.xml"
+
+    # Example single file paths for manual testing (uncomment and adjust if needed):
+    # SINGLE_FILE = '//Users/huseyinkir/workspaces/workspace1/ndl-core-data-pipeline/data/raw/hansard_gov_uk/scrapedxml/debates/debates2025-01-06b.xml'
+    # SINGLE_FILE = '/Users/huseyinkir/workspaces/workspace1/ndl-core-data-pipeline/data/raw/hansard_gov_uk/scrapedxml/wrans/answers2025-01-02.xml'
 
     # Call parser using the local variables above (no CLI required)
     parser(source_dir=SOURCE_DIR, dest_dir=DEST_DIR, limit=LIMIT, single_file=SINGLE_FILE, dry_run=DRY_RUN)
