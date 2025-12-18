@@ -39,7 +39,7 @@ class TestHtmlExtractor(unittest.TestCase):
         self.assertEqual(out.strip(), out)
         # ensure hrefs are preserved as text in parentheses
         self.assertTrue("https://assets.publishing.service.gov.uk/media/68e38e58750fcf90fa6ffdfc/Short_Bros_SD3-60_N915GD_10-25.pdf" in out or "https://assets.publishing.service.gov.uk/media/68e38de0c487360cc70ca12d/Abbreviations.pdf" in out)
-        print(out)
+        # print(out)
 
     def test_extracts_from_legislation_sample(self):
         src = Path(__file__).parent.parent / "test_data" / "legislation.json"
@@ -50,7 +50,11 @@ class TestHtmlExtractor(unittest.TestCase):
         self.assertNotIn("<", out)
         self.assertNotIn(">", out)
         self.assertTrue(any(k in out for k in ["Section", "Act", "Part"]) or len(out.split()) > 50)
-        print(out)
+        # print(out)
+        # test paragraphing - there should be line breaks between paragraphs
+        self.assertIn("\n", out)
+        self.assertIn("2025 asp 12\n", out)
+        self.assertNotIn("2025 asp 12 The Bill", out)
 
     def test_empty_and_file_function(self):
         self.assertEqual(extract_text_from_html(""), "")
