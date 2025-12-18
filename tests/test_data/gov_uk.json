@@ -1,0 +1,398 @@
+{
+  "metadata": {
+    "link": "https://www.gov.uk/aaib-reports/aaib-investigation-to-short-bros-sd3-60-n915gd",
+    "title": "AAIB investigation to Short Bros SD3-60, N915GD",
+    "description": "Runway undershoot at Terrance B. Lettsome International Airport, British Virgin Islands, 6 November 2024",
+    "source": "gov.uk",
+    "creator": [
+      "Air Accidents Investigation Branch"
+    ],
+    "public_time": "2025-10-09T09:02:52+00:00",
+    "first_publish_time": "2025-10-09T09:02:52+00:00",
+    "collection_time": "2025-12-11T11:18:35.477594+00:00",
+    "open_type": "Open Government",
+    "license:": "Open Government Licence v3.0",
+    "language": "en",
+    "format": "text"
+  },
+  "text": "<p>On arrival at Terrance B Lettsome International Airport (TUPJ) in the British Virgin Islands, N915GD was likely affected by nearby thunderstorm activity, reportedly experiencing a downdraught on short finals.  Despite the commander applying more power to \u201carrest the descent\u201d, the aircraft initially touched down on the lip of Runway 07 (Rwy 07), approximately 150 m short of the threshold.  It then bounced and touched down again close to the threshold.  The airfield operations team later found a frangible runway light had been damaged by the aircraft when it undershot the runway.</p>\n\n<p>While he knew the aircraft initially touched down in the undershoot, the commander was unaware that it had struck the light and did not file an occurrence report.  The aircraft returned to its home base approximately one hour later.</p>\n\n<p>An initial incorrect assessment of the severity of this incident, contributed to a delay in this serious incident being notified to the AAIB.  This delay, combined with a paucity of information about the circumstances and handling of the event, made it difficult for the investigation to gain a detailed understanding of what had happened.  It is unclear whether the undershoot resulted from the commander attempting to rescue an unstable approach or whether his application of power was the initiation of an unsuccessful go-around.</p>\n\n<h3 id=\"download-the-report\">Download the report:</h3>\n\n<p><span id=\"attachment_a9f818ce-9428-4290-83d8-04f77042ac4f\" class=\"attachment-inline\"><a href=\"https://assets.publishing.service.gov.uk/media/68e38e58750fcf90fa6ffdfc/Short_Bros_SD3-60_N915GD_10-25.pdf\">Short Bros SD3-60, N915GD 10-25</a></span></p>\n\n<h3 id=\"download-glossary-of-abbreviations\">Download glossary of abbreviations:</h3>\n\n<p><span id=\"attachment_0ceb982c-d899-4124-8edd-8107cf47cba5\" class=\"attachment-inline\"><a href=\"https://assets.publishing.service.gov.uk/media/68e38de0c487360cc70ca12d/Abbreviations.pdf\">Glossary of abbreviations</a></span></p>\n",
+  "full_api_response": {
+    "analytics_identifier": null,
+    "base_path": "/aaib-reports/aaib-investigation-to-short-bros-sd3-60-n915gd",
+    "content_id": "b98c2df4-a332-4922-96b1-e11c44d06955",
+    "description": "Runway undershoot at Terrance B. Lettsome International Airport, British Virgin Islands, 6 November 2024",
+    "details": {
+      "attachments": [
+        {
+          "attachment_type": "file",
+          "content_id": "0ceb982c-d899-4124-8edd-8107cf47cba5",
+          "content_type": "application/pdf",
+          "created_at": "2025-10-06T10:37:36+01:00",
+          "id": "0ceb982c-d899-4124-8edd-8107cf47cba5",
+          "title": "Glossary of abbreviations",
+          "updated_at": "2025-10-06T10:37:36+01:00",
+          "url": "https://assets.publishing.service.gov.uk/media/68e38de0c487360cc70ca12d/Abbreviations.pdf"
+        },
+        {
+          "attachment_type": "file",
+          "content_id": "a9f818ce-9428-4290-83d8-04f77042ac4f",
+          "content_type": "application/pdf",
+          "created_at": "2025-10-06T10:39:36+01:00",
+          "id": "a9f818ce-9428-4290-83d8-04f77042ac4f",
+          "title": "Short Bros SD3-60, N915GD 10-25",
+          "updated_at": "2025-10-06T10:39:36+01:00",
+          "url": "https://assets.publishing.service.gov.uk/media/68e38e58750fcf90fa6ffdfc/Short_Bros_SD3-60_N915GD_10-25.pdf"
+        }
+      ],
+      "body": "<p>On arrival at Terrance B Lettsome International Airport (TUPJ) in the British Virgin Islands, N915GD was likely affected by nearby thunderstorm activity, reportedly experiencing a downdraught on short finals.  Despite the commander applying more power to \u201carrest the descent\u201d, the aircraft initially touched down on the lip of Runway 07 (Rwy 07), approximately 150 m short of the threshold.  It then bounced and touched down again close to the threshold.  The airfield operations team later found a frangible runway light had been damaged by the aircraft when it undershot the runway.</p>\n\n<p>While he knew the aircraft initially touched down in the undershoot, the commander was unaware that it had struck the light and did not file an occurrence report.  The aircraft returned to its home base approximately one hour later.</p>\n\n<p>An initial incorrect assessment of the severity of this incident, contributed to a delay in this serious incident being notified to the AAIB.  This delay, combined with a paucity of information about the circumstances and handling of the event, made it difficult for the investigation to gain a detailed understanding of what had happened.  It is unclear whether the undershoot resulted from the commander attempting to rescue an unstable approach or whether his application of power was the initiation of an unsuccessful go-around.</p>\n\n<h3 id=\"download-the-report\">Download the report:</h3>\n\n<p><span id=\"attachment_a9f818ce-9428-4290-83d8-04f77042ac4f\" class=\"attachment-inline\"><a href=\"https://assets.publishing.service.gov.uk/media/68e38e58750fcf90fa6ffdfc/Short_Bros_SD3-60_N915GD_10-25.pdf\">Short Bros SD3-60, N915GD 10-25</a></span></p>\n\n<h3 id=\"download-glossary-of-abbreviations\">Download glossary of abbreviations:</h3>\n\n<p><span id=\"attachment_0ceb982c-d899-4124-8edd-8107cf47cba5\" class=\"attachment-inline\"><a href=\"https://assets.publishing.service.gov.uk/media/68e38de0c487360cc70ca12d/Abbreviations.pdf\">Glossary of abbreviations</a></span></p>\n",
+      "change_history": [
+        {
+          "note": "First published.",
+          "public_timestamp": "2025-10-09T09:02:52Z"
+        }
+      ],
+      "max_cache_time": 10,
+      "metadata": {
+        "aircraft_category": [
+          "commercial-fixed-wing"
+        ],
+        "aircraft_type": "Short Bros SD3-60",
+        "date_of_occurrence": "2024-11-06",
+        "location": "Terrance B Lettsome International Airport, British Virgin Islands",
+        "registration": "N915GD",
+        "report_type": "correspondence-investigation"
+      },
+      "temporary_update_type": false
+    },
+    "document_type": "aaib_report",
+    "first_published_at": "2025-10-09T10:02:52+01:00",
+    "links": {
+      "available_translations": [
+        {
+          "api_path": "/api/content/aaib-reports/aaib-investigation-to-short-bros-sd3-60-n915gd",
+          "api_url": "https://www.gov.uk/api/content/aaib-reports/aaib-investigation-to-short-bros-sd3-60-n915gd",
+          "base_path": "/aaib-reports/aaib-investigation-to-short-bros-sd3-60-n915gd",
+          "content_id": "b98c2df4-a332-4922-96b1-e11c44d06955",
+          "document_type": "aaib_report",
+          "links": {},
+          "locale": "en",
+          "public_updated_at": "2025-10-09T09:02:52Z",
+          "schema_name": "specialist_document",
+          "title": "AAIB investigation to Short Bros SD3-60, N915GD",
+          "web_url": "https://www.gov.uk/aaib-reports/aaib-investigation-to-short-bros-sd3-60-n915gd",
+          "withdrawn": false
+        }
+      ],
+      "finder": [
+        {
+          "api_path": "/api/content/aaib-reports",
+          "api_url": "https://www.gov.uk/api/content/aaib-reports",
+          "base_path": "/aaib-reports",
+          "content_id": "b7574bba-969f-4c49-855a-ae1586258ff6",
+          "details": {
+            "facets": [
+              {
+                "allowed_values": [
+                  {
+                    "label": "Commercial - fixed wing",
+                    "value": "commercial-fixed-wing"
+                  },
+                  {
+                    "label": "Commercial - rotorcraft",
+                    "value": "commercial-rotorcraft"
+                  },
+                  {
+                    "label": "General aviation - fixed wing",
+                    "value": "general-aviation-fixed-wing"
+                  },
+                  {
+                    "label": "General aviation - rotorcraft",
+                    "value": "general-aviation-rotorcraft"
+                  },
+                  {
+                    "label": "Spaceflight",
+                    "value": "spaceflight"
+                  },
+                  {
+                    "label": "Sport aviation and balloons",
+                    "value": "sport-aviation-and-balloons"
+                  },
+                  {
+                    "label": "Unmanned Aircraft Systems (UAS)",
+                    "value": "unmanned-aircraft-systems"
+                  }
+                ],
+                "display_as_result_metadata": true,
+                "filterable": true,
+                "key": "aircraft_category",
+                "name": "Category",
+                "preposition": "in category",
+                "type": "text"
+              },
+              {
+                "allowed_values": [
+                  {
+                    "label": "Annual safety report",
+                    "value": "annual-safety-report"
+                  },
+                  {
+                    "label": "Bulletin - Correspondence investigation",
+                    "value": "correspondence-investigation"
+                  },
+                  {
+                    "label": "Bulletin - Field investigation",
+                    "value": "field-investigation"
+                  },
+                  {
+                    "label": "Bulletin - Pre-1997 uncategorised monthly report",
+                    "value": "pre-1997-monthly-report"
+                  },
+                  {
+                    "label": "Foreign report",
+                    "value": "foreign-report"
+                  },
+                  {
+                    "label": "Formal report",
+                    "value": "formal-report"
+                  },
+                  {
+                    "label": "Spaceflight",
+                    "value": "spaceflight"
+                  },
+                  {
+                    "label": "Special bulletin",
+                    "value": "special-bulletin"
+                  },
+                  {
+                    "label": "Safety study",
+                    "value": "safety-study"
+                  }
+                ],
+                "display_as_result_metadata": true,
+                "filterable": true,
+                "key": "report_type",
+                "name": "Report type",
+                "preposition": "of type",
+                "type": "text"
+              },
+              {
+                "display_as_result_metadata": true,
+                "filterable": true,
+                "key": "date_of_occurrence",
+                "name": "Date of occurrence",
+                "preposition": "occurred",
+                "short_name": "Occurred",
+                "type": "date"
+              },
+              {
+                "display_as_result_metadata": false,
+                "filterable": false,
+                "key": "aircraft_type",
+                "name": "Aircraft type",
+                "type": "text"
+              },
+              {
+                "display_as_result_metadata": false,
+                "filterable": false,
+                "key": "location",
+                "name": "Location",
+                "type": "text"
+              },
+              {
+                "display_as_result_metadata": false,
+                "filterable": false,
+                "key": "registration",
+                "name": "Registration",
+                "type": "text"
+              }
+            ],
+            "show_metadata_block": true,
+            "show_table_of_contents": true
+          },
+          "document_type": "finder",
+          "links": {},
+          "locale": "en",
+          "public_updated_at": "2025-04-28T18:53:05Z",
+          "schema_name": "finder",
+          "title": "Air Accidents Investigation Branch reports",
+          "web_url": "https://www.gov.uk/aaib-reports",
+          "withdrawn": false
+        }
+      ],
+      "organisations": [
+        {
+          "analytics_identifier": "OT248",
+          "api_path": "/api/content/government/organisations/air-accidents-investigation-branch",
+          "api_url": "https://www.gov.uk/api/content/government/organisations/air-accidents-investigation-branch",
+          "base_path": "/government/organisations/air-accidents-investigation-branch",
+          "content_id": "38eb5d8f-2d89-480c-8655-e2e7ac23f8f4",
+          "details": {
+            "acronym": "AAIB",
+            "brand": "department-for-transport",
+            "default_news_image": {
+              "high_resolution_url": "https://assets.publishing.service.gov.uk/media/5a37db2240f0b649cceb18ad/s960_AAIB_Default_News_Image.jpg",
+              "url": "https://assets.publishing.service.gov.uk/media/5a37db23e5274a79051c9260/s300_AAIB_Default_News_Image.jpg"
+            },
+            "logo": {
+              "crest": "custom",
+              "formatted_title": "Air Accidents<br/>Investigation Branch",
+              "image": {
+                "alt_text": "Air Accidents Investigation Branch",
+                "url": "https://assets.publishing.service.gov.uk/media/6751c5542086e98fae3511a9/AAIB_logo_black_-_transparent_background_960_px_640_px.png"
+              }
+            },
+            "organisation_govuk_status": {
+              "status": "live",
+              "updated_at": null,
+              "url": null
+            }
+          },
+          "document_type": "organisation",
+          "links": {},
+          "locale": "en",
+          "schema_name": "organisation",
+          "title": "Air Accidents Investigation Branch",
+          "web_url": "https://www.gov.uk/government/organisations/air-accidents-investigation-branch",
+          "withdrawn": false
+        }
+      ],
+      "primary_publishing_organisation": [
+        {
+          "analytics_identifier": "OT248",
+          "api_path": "/api/content/government/organisations/air-accidents-investigation-branch",
+          "api_url": "https://www.gov.uk/api/content/government/organisations/air-accidents-investigation-branch",
+          "base_path": "/government/organisations/air-accidents-investigation-branch",
+          "content_id": "38eb5d8f-2d89-480c-8655-e2e7ac23f8f4",
+          "details": {
+            "acronym": "AAIB",
+            "brand": "department-for-transport",
+            "default_news_image": {
+              "high_resolution_url": "https://assets.publishing.service.gov.uk/media/5a37db2240f0b649cceb18ad/s960_AAIB_Default_News_Image.jpg",
+              "url": "https://assets.publishing.service.gov.uk/media/5a37db23e5274a79051c9260/s300_AAIB_Default_News_Image.jpg"
+            },
+            "logo": {
+              "crest": "custom",
+              "formatted_title": "Air Accidents<br/>Investigation Branch",
+              "image": {
+                "alt_text": "Air Accidents Investigation Branch",
+                "url": "https://assets.publishing.service.gov.uk/media/6751c5542086e98fae3511a9/AAIB_logo_black_-_transparent_background_960_px_640_px.png"
+              }
+            },
+            "organisation_govuk_status": {
+              "status": "live",
+              "updated_at": null,
+              "url": null
+            }
+          },
+          "document_type": "organisation",
+          "links": {},
+          "locale": "en",
+          "schema_name": "organisation",
+          "title": "Air Accidents Investigation Branch",
+          "web_url": "https://www.gov.uk/government/organisations/air-accidents-investigation-branch",
+          "withdrawn": false
+        }
+      ],
+      "taxons": [
+        {
+          "api_path": "/api/content/transport/air-accidents-and-serious-incidents",
+          "api_url": "https://www.gov.uk/api/content/transport/air-accidents-and-serious-incidents",
+          "base_path": "/transport/air-accidents-and-serious-incidents",
+          "content_id": "951ece54-c6df-4fbc-aa18-1bc629815fe2",
+          "description": "Investigation into aircraft accidents and serious incidents.",
+          "details": {
+            "internal_name": "Air accidents and serious incidents",
+            "notes_for_editors": "",
+            "visible_to_departmental_editors": false
+          },
+          "document_type": "taxon",
+          "links": {
+            "parent_taxons": [
+              {
+                "api_path": "/api/content/transport/aviation",
+                "api_url": "https://www.gov.uk/api/content/transport/aviation",
+                "base_path": "/transport/aviation",
+                "content_id": "51efa3dd-e9bc-42b2-aa26-06bf5f543015",
+                "description": "Aviation and airspace policy, airport expansion, airline routes, passenger experience and air accidents.",
+                "details": {
+                  "internal_name": "Aviation",
+                  "notes_for_editors": "",
+                  "visible_to_departmental_editors": false
+                },
+                "document_type": "taxon",
+                "links": {
+                  "parent_taxons": [
+                    {
+                      "api_path": "/api/content/transport",
+                      "api_url": "https://www.gov.uk/api/content/transport",
+                      "base_path": "/transport",
+                      "content_id": "a4038b29-b332-4f13-98b1-1c9709e216bc",
+                      "description": "Aviation, roads, rail, maritime, driving, freight, public transport, safety, environment and transport accessibility.",
+                      "details": {
+                        "internal_name": "Transport",
+                        "notes_for_editors": "",
+                        "visible_to_departmental_editors": true
+                      },
+                      "document_type": "taxon",
+                      "links": {
+                        "root_taxon": [
+                          {
+                            "api_path": "/api/content/",
+                            "api_url": "https://www.gov.uk/api/content/",
+                            "base_path": "/",
+                            "content_id": "f3bbdec2-0e62-4520-a7fd-6ffd5d36e03a",
+                            "document_type": "homepage",
+                            "links": {},
+                            "locale": "en",
+                            "public_updated_at": "2023-06-28T09:32:34Z",
+                            "schema_name": "homepage",
+                            "title": "GOV.UK homepage",
+                            "web_url": "https://www.gov.uk/",
+                            "withdrawn": false
+                          }
+                        ]
+                      },
+                      "locale": "en",
+                      "phase": "live",
+                      "public_updated_at": "2018-06-15T14:31:46Z",
+                      "schema_name": "taxon",
+                      "title": "Transport",
+                      "web_url": "https://www.gov.uk/transport",
+                      "withdrawn": false
+                    }
+                  ]
+                },
+                "locale": "en",
+                "phase": "live",
+                "public_updated_at": "2018-06-14T09:27:19Z",
+                "schema_name": "taxon",
+                "title": "Aviation",
+                "web_url": "https://www.gov.uk/transport/aviation",
+                "withdrawn": false
+              }
+            ]
+          },
+          "locale": "en",
+          "phase": "live",
+          "public_updated_at": "2018-06-14T11:42:57Z",
+          "schema_name": "taxon",
+          "title": "Air accidents and serious incidents",
+          "web_url": "https://www.gov.uk/transport/air-accidents-and-serious-incidents",
+          "withdrawn": false
+        }
+      ]
+    },
+    "locale": "en",
+    "phase": "live",
+    "public_updated_at": "2025-10-09T10:02:52+01:00",
+    "publishing_app": "specialist-publisher",
+    "publishing_request_id": "21-1760000572.042-10.13.20.98-2143",
+    "publishing_scheduled_at": null,
+    "rendering_app": "frontend",
+    "scheduled_publishing_delay_seconds": null,
+    "schema_name": "specialist_document",
+    "title": "AAIB investigation to Short Bros SD3-60, N915GD",
+    "updated_at": "2025-12-10T10:56:33+00:00",
+    "withdrawn_notice": {}
+  }
+}
