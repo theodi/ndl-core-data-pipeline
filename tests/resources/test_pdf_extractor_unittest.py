@@ -1,7 +1,7 @@
 import unittest
 import os
 
-from ndl_core_data_pipeline.resources.pdf_extractor import extract_text_from_pdf
+from ndl_core_data_pipeline.resources.convertors.pdf_extractor import extract_text_from_pdf
 
 
 class TestPDFExtractor(unittest.TestCase):

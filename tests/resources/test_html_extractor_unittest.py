@@ -1,11 +1,12 @@
+import os
 import unittest
 import json
 from pathlib import Path
 
-from ndl_core_data_pipeline.resources.html_extractor import extract_text_from_html, extract_text_from_file
+from ndl_core_data_pipeline.resources.convertors.html_extractor import extract_text_from_html, extract_text_from_file
 
 
-# Determine path to test_data relative to repository layout
+CURRENT_DIR = Path(__file__).parent
 TEST_DATA_DIR = Path(__file__).parent.parent / "test_data"
 
 
@@ -58,7 +59,7 @@ class TestHtmlExtractor(unittest.TestCase):
 
     def test_empty_and_file_function(self):
         self.assertEqual(extract_text_from_html(""), "")
-        p = Path("tests/tmp_test_html.html")
+        p = Path(os.path.join(TEST_DATA_DIR, "tmp_test_html.html"))
         p.write_text("<html><body><p>Hello<b>World</b></p></body></html>", encoding="utf-8")
         try:
             out = extract_text_from_file(p)
