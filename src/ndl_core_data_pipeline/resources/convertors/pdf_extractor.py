@@ -5,6 +5,9 @@ Provides a single function `extract_text_from_pdf(path, page_numbers=None, ocr_t
 from typing import Iterable, Optional
 import os
 
+import fitz  # PyMuPDF
+
+
 # Runs OCR if extracted text length is below this threshold
 OCR_THRESHOLD = 200
 
@@ -71,11 +74,6 @@ def extract_text_from_pdf(path: str, page_numbers: Optional[Iterable[int]] = Non
     if not os.path.exists(path):
         raise FileNotFoundError(f"PDF file not found: {path}")
 
-    try:
-        import fitz  # PyMuPDF
-    except Exception as e:
-        raise RuntimeError("PyMuPDF (fitz) is required to extract PDF text. Install with 'uv add pymupdf'.") from e
-
     doc = fitz.open(path)
     try:
         total_pages = doc.page_count
@@ -96,7 +94,6 @@ def extract_text_from_pdf(path: str, page_numbers: Optional[Iterable[int]] = Non
         # If text is very short, try OCR fallback
         if len(text) < ocr_threshold:
             ocr_text = _perform_ocr_on_pdf(path, page_numbers=pages if len(list(pages)) > 0 else None, lang=ocr_lang)
-            # Prefer OCR text if it's longer
             if len(ocr_text) > len(text):
                 return text + "\n\n" + ocr_text
         return text
