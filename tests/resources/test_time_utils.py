@@ -56,6 +56,13 @@ class TestTimeUtils(unittest.TestCase):
         # Keep milliseconds
         self.assertEqual(out, "2021-11-01T00:00:00+00:00")
 
+    def test_parse_english_short_month(self):
+        # Accept dates like '1 Mar 2023' and normalize to ISO 8601 UTC
+        inp = "1 Mar 2023"
+        out = parse_to_iso8601_utc(inp)
+        self.assertTrue(out.endswith("+00:00"))
+        self.assertEqual(out, "2023-03-01T00:00:00+00:00")
+
     def test_empty_string(self):
         inp = ""
         out = parse_to_iso8601_utc(inp)
