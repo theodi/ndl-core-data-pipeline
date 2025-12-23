@@ -1,6 +1,6 @@
 [project]
 name = "ndl-core-data-pipeline"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.14"
 version = "0.1.0"
 dependencies = [
     "dagster==1.12.5",
@@ -12,6 +12,7 @@ dependencies = [
     "pytesseract>=0.3.10",
     "pillow>=9.0.0",
     "pyarrow>=22.0.0",
+    "odfpy>=1.4.1",
 ]
 
 [dependency-groups]

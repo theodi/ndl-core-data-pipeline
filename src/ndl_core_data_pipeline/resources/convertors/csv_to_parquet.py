@@ -149,10 +149,24 @@ def handle_iso8601_dates(col, s, df_converted) -> bool:
     # Explicitly treat common null tokens as NA (some CSVs may contain literal tokens)
     s_for_date = s_stripped.replace(list(NULL_TOKENS), pd.NA)
 
+    # Detect time-only strings (e.g. '15:00' or '15:00:00') and avoid
+    # treating columns that are predominantly time-only as dates. Pandas
+    # will happily parse time-only strings into today's date + time which
+    # is undesirable for columns that represent times of day.
+    time_re = r"^\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?$"
+    non_null_series = s_for_date.dropna()
+    total_non_null = non_null_series.shape[0]
+    if total_non_null > 0:
+        time_only_count = non_null_series.astype(str).str.match(time_re).sum()
+        # If the majority of non-null values are time-only, don't treat as date
+        if (time_only_count / total_non_null) >= 0.5:
+            return False
+
     # Parse using pandas; values that cannot be parsed become NaT
     parsed_dates = pd.to_datetime(s_for_date, errors="coerce")
     parsed_ok = parsed_dates.notna().sum()
-    total_non_null = s_for_date.notna().sum()
+    if 'total_non_null' not in locals() or total_non_null is None:
+        total_non_null = s_for_date.notna().sum()
 
     # If a reasonable fraction of non-null values parse as dates, treat column as date
     # Threshold is 50% (useful for sparse columns with many blanks)
