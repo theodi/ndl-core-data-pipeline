@@ -1000,6 +1000,7 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pymupdf" },
     { name = "pytesseract" },
+    { name = "tqdm" },
 ]
 
 [package.dev-dependencies]
@@ -1020,6 +1021,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=22.0.0" },
     { name = "pymupdf", specifier = ">=1.26.7" },
     { name = "pytesseract", specifier = ">=0.3.10" },
+    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [package.metadata.requires-dev]
