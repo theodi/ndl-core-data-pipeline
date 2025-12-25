@@ -2,6 +2,10 @@
 
 The data pipeline supporting the AI-ready core of the National Data Library
 
+THis project uses [Dagster](https://dagster.io/) as the orchestration framework. Two main pipelines are defined:
+- **ingest_pipeline**: Ingests raw data from various sources, performs initial processing, and stores it in a staging area.
+- **process_pipeline**: Processes the staged data, applies transformations, and prepares it for final storage and deployment.
+
 
 ### Installing dependencies
 

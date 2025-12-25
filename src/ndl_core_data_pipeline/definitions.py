@@ -6,6 +6,8 @@ from dagster import (
     RunRequest,
     SensorDefinition
 )
+from markdown_it.common.html_re import processing
+
 from ndl_core_data_pipeline import assets as assets_package
 from .resources.api_client import RateLimitedApiClient
 
@@ -23,6 +25,11 @@ all_assets = load_assets_from_package_module(
 
 batch_job = define_asset_job("gov_uk_batch_job", selection=[gov_uk_process_batch])
 data_gov_job = define_asset_job("data_gov_batch_job", selection=[data_gov_process_category])
+
+processing_pipeline = define_asset_job(
+    name="processing_pipeline",
+    selection="group:processing"
+)
 
 
 def gov_uk_sensor(context):
@@ -65,7 +72,7 @@ def data_gov_sensor(context):
 
 defs = Definitions(
     assets=all_assets,
-    jobs=[batch_job, data_gov_job],
+    jobs=[batch_job, data_gov_job, processing_pipeline],
     sensors=[
         SensorDefinition(name="trigger_gov_uk_batches", evaluation_fn=gov_uk_sensor, job=batch_job),
         SensorDefinition(name="trigger_data_gov_categories", evaluation_fn=data_gov_sensor, job=data_gov_job),
