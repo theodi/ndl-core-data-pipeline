@@ -20,6 +20,8 @@ from pandas import DataFrame
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from charset_normalizer import from_path
+
 # use project time utilities for ISO parsing/normalization
 from ndl_core_data_pipeline.resources import time_utils
 
@@ -60,7 +62,11 @@ def convert_csv_to_parquet(input_csv: str | Path, output_parquet: str | Path) ->
     input_csv = Path(input_csv)
     output_parquet = Path(output_parquet)
 
-    df_raw = pd.read_csv(input_csv, dtype=str, keep_default_na=False)
+    encoding_result = from_path(input_csv).best()
+    if encoding_result is None:
+        raise ValueError("Could not detect file encoding")
+
+    df_raw = pd.read_csv(input_csv, dtype=str, keep_default_na=False, encoding=encoding_result.encoding)
 
     handle_null_values(df_raw)
 

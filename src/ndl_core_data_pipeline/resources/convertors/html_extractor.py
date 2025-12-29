@@ -154,5 +154,9 @@ def extract_text_from_file(path: Union[str, Path]) -> str:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(path)
-    text = p.read_text(encoding="utf-8")
+    # ignore encoding errors (received HTML may be malformed)
+    try:
+        text = p.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return ""
     return extract_text_from_html(text)

@@ -26,6 +26,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict
 
+import uuid
+import signal
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -37,6 +39,8 @@ from ndl_core_data_pipeline.resources.convertors.csv_to_parquet import (
     handle_numeric_column,
     handle_iso8601_dates,
 )
+
+FILE_READ_TIMEOUT = 60
 
 
 def _safe_sheet_filename(name: str) -> str:
@@ -101,32 +105,51 @@ def _process_dataframe_and_write(df_raw: pd.DataFrame, out_path: Path) -> Path:
     return out_path
 
 
-def convert_spreadsheet_to_parquet(input_path: str | Path, output_parquet: str | Path) -> Path:
+def convert_spreadsheet_to_parquet(input_path: str | Path, output_path: str | Path, uuid_names: bool=False) -> Path:
     """Convert spreadsheet file to parquet(s).
 
     Parameters
     - input_path: path to .xlsx or .ods file
-    - output_parquet: path to output file, or directory when multiple sheets
+    - output_path: path to output file, or directory when multiple sheets
+    - uuid_names: if True, appends a UUID to output_path to avoid name collisions also gives uuid names to data files.
 
     Returns Path to written parquet file or directory containing per-sheet
     parquet files when multiple sheets exist.
     """
     input_path = Path(input_path)
-    output_parquet = Path(output_parquet)
+    output_path = Path(output_path)
 
-    # Read all sheets as strings (None -> dict of sheet_name -> DataFrame)
-    sheets: Dict[str, pd.DataFrame] = pd.read_excel(
-        input_path, sheet_name=None, dtype=str, keep_default_na=False
-    )
+    def timeout_handler(signum, frame):
+        raise TimeoutException()
+
+    # Timeout for reading large spreadsheets
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(FILE_READ_TIMEOUT)  # 5 minutes
+
+    try:
+        # Read all sheets as strings (None -> dict of sheet_name -> DataFrame)
+        sheets: Dict[str, pd.DataFrame] = pd.read_excel(
+            input_path, sheet_name=None, dtype=str, keep_default_na=False
+        )
+    except TimeoutException:
+        print("Skipping file: read_excel timed out")
+        return None
+    finally:
+        signal.alarm(0)
 
     if len(sheets) > 1:
         # Treat output_parquet as directory path
-        out_dir = output_parquet
+        out_dir = output_path
+        if uuid_names:
+            out_dir = Path(output_path) / str(uuid.uuid4())
         out_dir.mkdir(parents=True, exist_ok=True)
 
         written_paths = []
         for name, df in sheets.items():
-            safe_name = _safe_sheet_filename(name)
+            if not uuid_names:
+                safe_name = _safe_sheet_filename(name)
+            else:
+                safe_name = str(uuid.uuid4())
             out_file = out_dir / f"{safe_name}.parquet"
             _process_dataframe_and_write(df, out_file)
             written_paths.append(out_file)
@@ -136,22 +159,30 @@ def convert_spreadsheet_to_parquet(input_path: str | Path, output_parquet: str |
     # Single sheet
     sheet_name, df = next(iter(sheets.items()))
     # If output_parquet is a directory, create file inside with sheet name
-    if output_parquet.exists() and output_parquet.is_dir():
-        safe_name = _safe_sheet_filename(sheet_name)
-        out_file = output_parquet / f"{safe_name}.parquet"
+    if output_path.exists() and output_path.is_dir():
+        if not uuid_names:
+            safe_name = _safe_sheet_filename(sheet_name)
+        else:
+            safe_name = str(uuid.uuid4())
+        out_file = output_path / f"{safe_name}.parquet"
         _process_dataframe_and_write(df, out_file)
         return out_file
 
     # If output_parquet ends with a slash or has no suffix and looks like a dir,
     # create parent directory
-    if str(output_parquet).endswith("/") or output_parquet.suffix == "":
-        output_parquet.mkdir(parents=True, exist_ok=True)
-        safe_name = _safe_sheet_filename(sheet_name)
-        out_file = output_parquet / f"{safe_name}.parquet"
+    if str(output_path).endswith("/") or output_path.suffix == "":
+        output_path.mkdir(parents=True, exist_ok=True)
+        if not uuid_names:
+            safe_name = _safe_sheet_filename(sheet_name)
+        else:
+            safe_name = str(uuid.uuid4())
+        out_file = output_path / f"{safe_name}.parquet"
         _process_dataframe_and_write(df, out_file)
         return out_file
 
     # Otherwise write to the provided file path
-    _process_dataframe_and_write(df, output_parquet)
-    return output_parquet
+    _process_dataframe_and_write(df, output_path)
+    return output_path
 
+class TimeoutException(Exception):
+    pass

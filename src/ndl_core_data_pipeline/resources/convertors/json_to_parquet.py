@@ -59,7 +59,9 @@ def convert_json_to_parquet(input_json: str | Path, output_parquet: str | Path) 
 
     # Detect API-style error objects and raise
     if isinstance(obj, dict) and "error" in obj:
-        raise ValueError(f"JSON contains error: {obj.get('error')}")
+        # skip jsons as error messages
+        # raise ValueError(f"JSON contains error: {obj.get('error')}")
+        return None
 
     # Normalize various common JSON shapes into a list of record dicts
     records = _normalize_json_to_records(obj)
