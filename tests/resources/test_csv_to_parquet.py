@@ -8,6 +8,7 @@ src_path = repo_root / 'src'
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
+import shutil
 import pyarrow.parquet as pq
 import pandas as pd
 
@@ -16,6 +17,18 @@ from ndl_core_data_pipeline.resources.time_utils import parse_to_iso8601_utc
 
 
 class TestCsvToParquet(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.maxDiff = None
+        self.tests_dir = Path(__file__).parent.parent / "test_data"
+        self.tmpdir = Path(self.tests_dir, "tmp")
+        self.tmpdir.mkdir(exist_ok=True)
+
+    def tearDown(self) -> None:
+        # don't delete files so debugging is easier; in CI you might clean up
+        # return None
+        shutil.rmtree(self.tmpdir)
+
     def test_simple_csv_conversion(self):
         repo_root = Path(__file__).resolve().parents[2]
         csv_path = repo_root / 'tests' / 'test_data' / 'simple.csv'
@@ -80,29 +93,41 @@ class TestCsvToParquet(unittest.TestCase):
         csv_path = repo_root / 'tests' / 'test_data' / 'simple.csv'
         self.assertTrue(csv_path.exists(), f"test csv not found: {csv_path}")
 
+        out = Path(self.tmpdir) / 'simple_td.parquet'
+        convert_csv_to_parquet(csv_path, out)
+        self.assertTrue(out.exists())
+
+        table = pq.read_table(str(out))
+        df = table.to_pandas()
+        # Check TestDate column exists
+        self.assertIn('TestDate', df.columns)
+
+        # pick KPI 1 row and check normalized iso date
+        row = df[df['Reference'] == 'KPI 1']
+        self.assertEqual(len(row), 1)
+        td_val = row.iloc[0]['TestDate']
+
+        expected = parse_to_iso8601_utc('1 Mar 2023')
+        # Normalize the actual value using the same utility and compare exact strings.
+        self.assertIsNotNone(td_val)
+        actual_norm = parse_to_iso8601_utc(str(td_val))
+        self.assertEqual(actual_norm, expected)
+
+    def test_simple_csv_conversion_2(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        csv_path = repo_root / 'tests' / 'test_data' / 'ons_gov_uk_failed.csv'
+        self.assertTrue(csv_path.exists(), f"test csv not found: {csv_path}")
+
         with tempfile.TemporaryDirectory() as td:
-            out = Path(td) / 'simple_td.parquet'
+            out = Path(td) / 'simple.parquet'
             convert_csv_to_parquet(csv_path, out)
             self.assertTrue(out.exists())
 
             table = pq.read_table(str(out))
             df = table.to_pandas()
-            # Check TestDate column exists
-            self.assertIn('TestDate', df.columns)
+            # should have rows and columns
+            self.assertGreater(df.shape[0], 0)
 
-            # pick KPI 1 row and check normalized iso date
-            row = df[df['Reference'] == 'KPI 1']
-            self.assertEqual(len(row), 1)
-            td_val = row.iloc[0]['TestDate']
-
-            expected = parse_to_iso8601_utc('1 Mar 2023')
-            # Normalize the actual value using the same utility and compare exact strings.
-            self.assertIsNotNone(td_val)
-            actual_norm = parse_to_iso8601_utc(str(td_val))
-            self.assertEqual(actual_norm, expected)
-
-
-# --- Numeric handler tests moved here (previously tests/resources/test_numeric_handler.py) ---
 class TestNumericHandler(unittest.TestCase):
     def test_integer_detection(self):
         s = pd.Series(['1', '2', '', 'NA', '3'])

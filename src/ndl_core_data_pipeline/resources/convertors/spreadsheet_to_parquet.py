@@ -40,7 +40,7 @@ from ndl_core_data_pipeline.resources.convertors.csv_to_parquet import (
     handle_iso8601_dates,
 )
 
-FILE_READ_TIMEOUT = 60
+FILE_READ_TIMEOUT = 60  # 1 minute
 
 
 def _safe_sheet_filename(name: str) -> str:

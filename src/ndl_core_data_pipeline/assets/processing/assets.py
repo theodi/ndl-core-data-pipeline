@@ -1,4 +1,4 @@
-from dagster import asset, AssetExecutionContext
+from dagster import asset, AssetExecutionContext, StaticPartitionsDefinition
 from pathlib import Path
 from uuid import uuid4
 import json
@@ -8,7 +8,6 @@ from langdetect import detect, DetectorFactory
 from ndl_core_data_pipeline.resources.refine.dedupe import deduplicate_folder
 from ndl_core_data_pipeline.resources.token_counter import count_tokens
 
-# reuse existing converters/extractors
 from ndl_core_data_pipeline.resources.convertors.html_extractor import (
     extract_text_from_file as extract_text_from_html_file,
     extract_text_from_html,
@@ -29,9 +28,11 @@ from ndl_core_data_pipeline.resources.convertors.spreadsheet_to_parquet import (
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import math
 
-MIN_TEXT_LENGTH = 150
+MIN_TEXT_LENGTH = 200
 SUPPORTED_FORMATS = ["text", "html", "htm", "xhtml", "csv", "xlsx", "xls", "pdf", "json", "ods"]
+BATCH_SIZE = 1000  # number of metadata files per partition; adjust as needed
 
 CURRENT_DIR = Path(__file__).parent
 TARGET_DIR = (CURRENT_DIR / "../../../../target").resolve()
@@ -41,6 +42,29 @@ PROCESSED_DIR = TARGET_DIR / "processed"
 STRUCTURED_DIR = TARGET_DIR / "structured"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 STRUCTURED_DIR.mkdir(parents=True, exist_ok=True)
+
+# Build a static partitions definition based on the number of deduplicated files (if available).
+# This allows running individual partitions (batches) and supports backfills by rerunning failed partition keys.
+
+def _build_partitions_def(batch_size: int = BATCH_SIZE) -> StaticPartitionsDefinition:
+    if NON_DUPLICATE_FILES.exists():
+        try:
+            with NON_DUPLICATE_FILES.open("r", encoding="utf-8") as fh:
+                lines = [l for l in fh.readlines() if l.strip()]
+            total = len(lines)
+            if total == 0:
+                # default single partition
+                return StaticPartitionsDefinition(["0"])
+            n_parts = math.ceil(total / batch_size)
+            keys = [str(i) for i in range(n_parts)]
+            return StaticPartitionsDefinition(keys)
+        except Exception:
+            return StaticPartitionsDefinition(["0"])
+    # if file not present yet (e.g., first run), create a reasonable default set of partitions
+    default_parts = 100
+    return StaticPartitionsDefinition([str(i) for i in range(default_parts)])
+
+PARTITIONS_DEF = _build_partitions_def()
 
 stats = dict()
 stats_unsupported = dict()
@@ -59,127 +83,194 @@ def deduplicated_records(context: AssetExecutionContext):
 
 @asset(
     group_name="processing",
+    partitions_def=PARTITIONS_DEF,
     non_argument_deps={"deduplicated_records"}
 )
 def format_records(context: AssetExecutionContext):
     """
-    Formats the deduplicated files and generates a standardized and unified parquet file. Formats structured data files into parquet and moves
-    them to a separate dataset folder.
-    :param context:
-    :return:
+    Formats the deduplicated files in a partition-aware manner and generates per-partition parquet files.
+
+    Each partition run processes a slice of the metadata file list and writes a partitioned parquet named
+    `ndl_core_dataset_part_{partition_key}.parquet` into the processed folder. A separate aggregation step
+    will combine all partition files into the single `ndl_core_dataset.parquet`.
     """
     input_file = NON_DUPLICATE_FILES
     if not input_file.exists():
         context.log.warning(f"No deduplicated records file found at {input_file}")
         return
-    with input_file.open("r") as f:
-        file_paths = [line.strip() for line in f.readlines()]
+    with input_file.open("r", encoding="utf-8") as f:
+        file_paths = [line.strip() for line in f.readlines() if line.strip()]
     context.log.info(f"Found {len(file_paths)} deduplicated files to format.")
 
-    final_meta_files = filter_supported_files(file_paths)
-    context.log.info(f"Processing {len(final_meta_files)} metadata json files to build parquet.")
+    # Determine partition slice
+    partition_key = getattr(context, "partition_key", None) or getattr(context, "asset_partition_key", None)
+    if partition_key is None:
+        # If no partition_key (materializing without partitions), process everything in a single run.
+        start_idx = 0
+        end_idx = len(file_paths)
+        partition_key = "0"
+    else:
+        try:
+            idx = int(partition_key)
+        except Exception:
+            context.log.error(f"Invalid partition key: {partition_key}. Expected integer string.")
+            return
+        start_idx = idx * BATCH_SIZE
+        end_idx = min(start_idx + BATCH_SIZE, len(file_paths))
+
+    selected_paths = file_paths[start_idx:end_idx]
+    context.log.info(f"Partition {partition_key}: processing items {start_idx}..{end_idx} (count={len(selected_paths)})")
+
+    final_meta_files = filter_supported_files(selected_paths)
+    context.log.info(f"Processing {len(final_meta_files)} metadata json files to build parquet (partition {partition_key}).")
 
     rows: List[Dict[str, Any]] = []
 
     DetectorFactory.seed = 0
     stats_empty_text = 0
     index = 0
+    failed_meta: List[str] = []
+    per_meta_exceptions = 0
     for meta_path in final_meta_files:
-        index = index + 1
-        print(f"Processing {index} / {len(final_meta_files)} - {meta_path}")
-        json_data = _read_json(meta_path)
-        if "metadata" in json_data:
-            meta =  json_data["metadata"]
-        elif "meta" in json_data:
-            meta = json_data["meta"]
-        else:
-            meta = json_data
-        text = json_data.get("text", "")
-        data_file = _find_associated_data_file(meta_path)
-        data_format = "text"
+        try:
+            index = index + 1
+            print(f"Processing {index} / {len(final_meta_files)} - {meta_path}")
+            json_data = _read_json(meta_path)
+            if "metadata" in json_data:
+                meta =  json_data["metadata"]
+            elif "meta" in json_data:
+                meta = json_data["meta"]
+            else:
+                meta = json_data
+            text = json_data.get("text", "")
+            data_file = _find_associated_data_file(meta_path)
+            data_format = "text"
 
-        fmt = (meta.get("format") or "").lower()
-        # If not provided, try to infer format from associated data file
-        if not fmt and data_file:
-            fmt = data_file.suffix.lower().lstrip('.')
+            fmt = (meta.get("format") or "").lower()
+            # If not provided, try to infer format from associated data file
+            if not fmt and data_file:
+                fmt = data_file.suffix.lower().lstrip('.')
 
-        if fmt not in SUPPORTED_FORMATS:
-            stats_unsupported[fmt] = stats_unsupported.get(fmt, 0) + 1
-            continue
-        if "hansard_gov_uk/scrapedxml" in str(meta_path):
-            # skip XML folder, we will process json version
-            continue
+            if fmt not in SUPPORTED_FORMATS:
+                stats_unsupported[fmt] = stats_unsupported.get(fmt, 0) + 1
+                continue
+            if "hansard_gov_uk/scrapedxml" in str(meta_path):
+                # skip XML folder, we will process json version
+                continue
 
-        stats[fmt] = stats.get(fmt, 0) + 1
+            stats[fmt] = stats.get(fmt, 0) + 1
 
-        data_file_rel = ""
-        if fmt in {"json", "csv", "xlsx", "xls", "ods"}:
-            if data_file:
-                conv = _convert_structured_to_parquet(data_file)
-                if conv:
-                    data_file_rel = str(conv)
+            data_file_rel = ""
+            if fmt in {"json", "csv", "xlsx", "xls", "ods"}:
+                if data_file:
+                    conv = _convert_structured_to_parquet(data_file)
+                    if conv:
+                        data_file_rel = str(conv.relative_to(STRUCTURED_DIR))
+                    else:
+                        data_file_not_found.append(str(meta_path))
+                        continue
+                    text = ""
+                    data_format = "parquet"
                 else:
                     data_file_not_found.append(str(meta_path))
                     continue
-                text = ""
-                data_format = "parquet"
+
+            if fmt in {"html", "htm", "xhtml", "pdf"}:
+                if data_file:
+                    if fmt in {"html", "htm", "xhtml"}:
+                        text = extract_text_from_html_file(data_file)
+                    elif fmt =="pdf":
+                        text = extract_text_from_pdf(str(data_file))
+
+            text = text.strip()
+            if "<" in text and ">" in text:
+                text = extract_text_from_html(text)
+
+            if data_format == "text" and "texts" not in json_data:
+                if not text or len(text.strip()) < MIN_TEXT_LENGTH:
+                    # skip empty or problematic text data
+                    stats_empty_text = stats_empty_text + 1
+                    continue
+
+            common_metadata = ["identifier", "title", "description", "source", "date", "collection_time", "open_type", "license", "tags",
+                               "language", "format", "text", "word_count", "token_count", "data_file"]
+            extra_metadata = {}
+            for keys in meta:
+                if keys not in common_metadata and meta[keys]:
+                    extra_metadata[keys] = meta[keys]
+
+            if "texts" in json_data:
+                conversation_id = 1
+                for conversation in json_data["texts"]:
+                    if not conversation.get("text") or len(conversation.get("text").strip()) < MIN_TEXT_LENGTH:
+                        # skip empty or problematic text data
+                        continue
+                    extra_metadata["speakers"] = conversation.get("speakers", [])
+                    add_dataset_record(data_file_rel, data_format, extra_metadata, meta, rows, conversation["text"], " conversation_" + str(conversation_id))
+                    conversation_id = conversation_id + 1
             else:
-                data_file_not_found.append(str(meta_path))
-                continue
+                add_dataset_record(data_file_rel, data_format, extra_metadata, meta, rows, text)
+        except Exception as exc:
+            # Record failed metadata and continue processing other files. This ensures a single bad file won't crash the partition.
+            per_meta_exceptions += 1
+            failed_meta.append(str(meta_path))
+            context.log.error(f"Failed processing {meta_path}: {exc}")
+            continue
 
-        if fmt in {"html", "htm", "xhtml", "pdf"}:
-            if data_file:
-                if fmt in {"html", "htm", "xhtml"}:
-                    text = extract_text_from_html_file(data_file)
-                elif fmt =="pdf":
-                    text = extract_text_from_pdf(str(data_file))
+    # Write per-partition parquet
+    if rows:
+        df = pd.DataFrame(rows)
+        out_parquet = PROCESSED_DIR / f"ndl_core_dataset_part_{partition_key}.parquet"
+        table = pa.table(df)
+        pq.write_table(table, str(out_parquet))
+        context.log.info(f"Wrote {len(rows)} records to {out_parquet} (partition {partition_key})")
+    else:
+        context.log.info(f"No rows produced for partition {partition_key}")
 
-        text = text.strip()
-        if "<" in text and ">" in text:
-            text = extract_text_from_html(text)
+    # Write partition status file so failed items can be re-run individually later.
+    status = {
+        "partition_key": partition_key,
+        "start_index": start_idx,
+        "end_index": end_idx,
+        "input_count": len(selected_paths),
+        "meta_files_count": len(final_meta_files),
+        "rows_written": len(rows),
+        "failed_meta_count": len(failed_meta),
+        "failed_meta": failed_meta,
+        "per_meta_exceptions": per_meta_exceptions,
+        "empty_text_count": stats_empty_text,
+        "unsupported_format_stats": stats_unsupported,
+        "data_file_not_found_count": len(data_file_not_found),
+        "data_file_not_found": data_file_not_found
+    }
+    status_path = None
+    try:
+        status_path = PROCESSED_DIR / f"ndl_core_dataset_part_{partition_key}.status.json"
+        with status_path.open("w", encoding="utf-8") as fh:
+            json.dump(status, fh)
+        context.log.info(f"Wrote partition status to {status_path}")
+    except Exception as e:
+        context.log.error(f"Failed to write partition status for {partition_key}: {e}")
 
-        if data_format == "text":
-            if not text or len(text.strip()) < MIN_TEXT_LENGTH:
-                # skip empty or problematic text data
-                stats_empty_text = stats_empty_text + 1
-                continue
-
-        common_metadata = ["identifier", "title", "description", "source", "date", "collection_time", "open_type", "license", "tags",
-                           "language", "format", "text", "word_count", "token_count", "data_file"]
-        extra_metadata = {}
-        for keys in meta:
-            if keys not in common_metadata and meta[keys]:
-                extra_metadata[keys] = meta[keys]
-
-        if "texts" in json_data:
-            conversation_id = 1
-            for conversation in json_data["texts"]:
-                extra_metadata["speakers"] = conversation.get("speakers", [])
-                add_dataset_record(data_file_rel, data_format, extra_metadata, meta, rows, conversation["text"], " conversation_" + str(conversation_id))
-                conversation_id = conversation_id + 1
-        else:
-            add_dataset_record(data_file_rel, data_format, extra_metadata, meta, rows, text)
-
-    df = pd.DataFrame(rows)
-    out_parquet = PROCESSED_DIR / "ndl_core_dataset.parquet"
-    table = pa.Table.from_pandas(df=df)
-    pq.write_table(table, str(out_parquet))
-
-    context.log.info(f"Wrote {len(rows)} records to {out_parquet}")
     context.log.info("Stats: " + str(stats))
     context.log.info("Unsupported format stats: " + str(stats_unsupported))
     context.log.info("Skipped empty texts: " + str(stats_empty_text))
     context.log.info("Data file not found: " + str(data_file_not_found))
+    if failed_meta:
+        if status_path:
+            context.log.warning(f"Partition {partition_key} had {len(failed_meta)} failed metadata files; see {status_path}")
+        else:
+            context.log.warning(f"Partition {partition_key} had {len(failed_meta)} failed metadata files; and status file could not be written.")
 
 
 def add_dataset_record(data_file_rel: str, data_format: Literal["text"] | str, extra_metadata: dict[Any, Any],
                        meta: dict[str, Any] | None | Any, rows: list[dict[str, Any]], text: str, alt_description:str=""):
     row = {
         "identifier": str(uuid4()),
-        "title": meta.get("title", ""),
-        "description": (meta.get("description", "") or "") + alt_description,
+        "title": (meta.get("title", "") + alt_description).strip(),
+        "description": ((meta.get("description", "") or "") + alt_description).strip(),
         "source": meta.get("source", ""),
-        "date": meta.get("date"),
+        "date": meta.get("date", meta.get("public_time", meta.get("first_publish_time", ""))),
         "collection_time": meta.get("collection_time"),
         "open_type": meta.get("open_type", "Open Government"),
         "license": get_standard_license(meta),
@@ -216,7 +307,7 @@ def get_standard_license(meta: dict[str, Any] | None | Any) -> str | None | Any:
 
 def detect_language(meta: dict[str, Any] | None | Any, text: str) -> Any:
     language = None
-    if text and len(text.strip()) > 20:
+    if text and len(text.strip()) > MIN_TEXT_LENGTH:
         try:
             language = detect(text)
         except Exception as e:
@@ -256,7 +347,7 @@ def _convert_structured_to_parquet(data_path: Path) -> Optional[Path]:
     if data_path.suffix.lower() == ".json":
         path = convert_json_to_parquet(data_path, out_path)
     if data_path.suffix.lower() == ".csv":
-        convert_csv_to_parquet(data_path, out_path)
+        path = convert_csv_to_parquet(data_path, out_path)
     if data_path.suffix.lower() in {".xlsx", ".xls", ".ods"}:
         path = convert_spreadsheet_to_parquet(data_path, STRUCTURED_DIR, uuid_names=True)
     if path:
@@ -281,3 +372,80 @@ def filter_supported_files(file_paths: list[str]) -> list[Path]:
         if p.stem not in meta_basenames:
             final_meta_files.append(p)
     return final_meta_files
+
+
+# New aggregation asset: combines per-partition parquet files into the single ndl_core_dataset.parquet
+@asset(group_name="processing", non_argument_deps={"format_records"})
+def aggregate_records(context: AssetExecutionContext):
+    """
+    Aggregate all per-partition parquet files into a single ndl_core_dataset.parquet. Missing partition files are
+    skipped but logged. This allows rerunning specific partitions and then re-running this aggregation to include
+    the fixed partitions.
+    """
+    part_files = sorted(PROCESSED_DIR.glob("ndl_core_dataset_part_*.parquet"))
+    if not part_files:
+        context.log.warning("No partition parquet files found to aggregate.")
+        return
+
+    dfs = []
+    for p in part_files:
+        try:
+            table = pq.read_table(str(p))
+            dfs.append(table.to_pandas())
+        except Exception as e:
+            context.log.error(f"Failed to read partition file {p}: {e}")
+
+    if not dfs:
+        context.log.warning("No valid partition dataframes to aggregate.")
+        return
+
+    combined = pd.concat(dfs, ignore_index=True)
+    out_parquet = TARGET_DIR / "ndl_core_dataset.parquet"
+    table = pa.table(combined)
+    pq.write_table(table, str(out_parquet))
+    context.log.info(f"Wrote aggregated dataset with {len(combined)} records to {out_parquet}")
+
+    # report missing partitions (use PARTITIONS_DEF if available)
+    try:
+        expected_keys = set(PARTITIONS_DEF.get_partition_keys())
+        existing_keys = {p.stem.rsplit("_", 1)[-1] for p in part_files}
+        missing = sorted(expected_keys - existing_keys)
+        if missing:
+            context.log.info(f"Missing partition keys (not yet produced): {missing}")
+    except Exception:
+        pass
+
+    log_total_statistics(context)
+
+def log_total_statistics(context: AssetExecutionContext):
+    """
+    Logs total statistics from all partition status files.
+    :param context:
+    :return:
+    """
+    status_files = sorted(PROCESSED_DIR.glob("ndl_core_dataset_part_*.status.json"))
+    total_stats = {
+        "input_count": 0,
+        "meta_files_count": 0,
+        "rows_written": 0,
+        "failed_meta_count": 0,
+        "per_meta_exceptions": 0,
+        "empty_text_count": 0,
+        "data_file_not_found_count": 0,
+        "unsupported_format_stats": {}
+    }
+    for status_file in status_files:
+        try:
+            with status_file.open("r", encoding="utf-8") as fh:
+                status = json.load(fh)
+            for key in total_stats.keys():
+                if key == "unsupported_format_stats":
+                    for fmt, count in status.get(key, {}).items():
+                        total_stats[key][fmt] = total_stats[key].get(fmt, 0) + count
+                else:
+                    total_stats[key] += status.get(key, 0)
+        except Exception as e:
+            context.log.error(f"Failed to read status file {status_file}: {e}")
+
+    context.log.info(f"Total statistics across all partitions: {total_stats}")
+
