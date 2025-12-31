@@ -50,9 +50,8 @@ class TestJsonToParquet(unittest.TestCase):
         err_json = self.tmpdir / "err.json"
         err_json.write_text('{"error":{"code":499,"message":"Token Required","details":[]}}')
         out_parquet = self.tmpdir / "err.parquet"
-        with self.assertRaises(ValueError) as cm:
-            convert_json_to_parquet(err_json, out_parquet)
-        self.assertIn("Token Required", str(cm.exception))
+        res = convert_json_to_parquet(err_json, out_parquet)
+        self.assertIsNone(res)
 
 
 if __name__ == "__main__":

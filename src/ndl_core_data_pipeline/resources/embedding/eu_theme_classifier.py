@@ -1,8 +1,11 @@
 import torch
 import pandas as pd
+from dagster_graphql.implementation.events import MAX_INT
 from sentence_transformers import SentenceTransformer, util
 from tqdm import tqdm
 from ndl_core_data_pipeline.resources.embedding.eu_data_themes import THEME_DEFINITIONS
+
+MAX_TEXT_LENGTH = 2500
 
 # set based on test data analysis
 SIMILARITY_THRESHOLD = 0.3
@@ -29,6 +32,7 @@ def get_multilabels_batch(text_list, threshold=0.35, top_k=3):
 
     batch_results = []
     for scores in cosine_scores:
+        # print(scores)
         # 'scores' is a tensor of 13 floats
         valid_indices = (scores > threshold).nonzero(as_tuple=True)[0]
         valid_scores = scores[valid_indices]
@@ -60,6 +64,7 @@ def classify_eu_themes(data_to_tag):
         )
         all_tags.extend(batch_tags)
 
+    # print("All tags: {}".format(all_tags))
     data_to_tag['predicted_themes'] = all_tags
     return data_to_tag
 
@@ -69,7 +74,7 @@ def prepare_text(row):
     if pd.notna(row.get('description')) and row.get('description'):
         text += f" {row['description']}"
     if pd.notna(row.get('text')) and row.get('text'):
-        text += f" {row['text'][:1000]}"  # limit to first 1000 chars
+        text += f" {row['text'][:MAX_TEXT_LENGTH]}"  # limit to first 2000 chars
     return text
 
 if __name__ == "__main__":
