@@ -27,11 +27,13 @@ from ndl_core_data_pipeline.resources.convertors.spreadsheet_to_parquet import (
 
 # added import for EU theme classifier
 from ndl_core_data_pipeline.resources.embedding.eu_theme_classifier import classify_eu_themes
+from ndl_core_data_pipeline.resources.refine.anonymizer import anonymize_text, run_batch_process
 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import math
+from tqdm import tqdm
 
 MIN_TEXT_LENGTH = 200
 SUPPORTED_FORMATS = ["text", "html", "htm", "xhtml", "csv", "xlsx", "xls", "pdf", "json", "ods"]
@@ -48,6 +50,7 @@ STRUCTURED_DIR.mkdir(parents=True, exist_ok=True)
 NON_DUPLICATE_FILES = TARGET_DIR / "non_duplicates.txt"
 AGGREGATED_ASSET = TARGET_DIR / "ndl_core_dataset_aggregated.parquet"
 TAGGED_ASSET = TARGET_DIR / "ndl_core_dataset_tagged.parquet"
+FINAL_ASSET = TARGET_DIR / "ndl_core_dataset.parquet"
 
 # Build a static partitions definition based on the number of deduplicated files (if available).
 # This allows running individual partitions (batches) and supports backfills by rerunning failed partition keys.
@@ -558,4 +561,37 @@ def tagged_data(context: AssetExecutionContext):
     except Exception as e:
         context.log.error(f"Failed to write tagged parquet to {TAGGED_ASSET}: {e}")
 
+
+@asset(
+    group_name="processing", non_argument_deps={"tagged_data"}
+)
+def anonymize_text_asset(context: AssetExecutionContext):
+    """
+    Reads the tagged dataset, anonymizes text records, and writes the result to a new parquet file.
+    """
+    context.log.info(f"Anonymizing text records in {TAGGED_ASSET}")
+    if not TAGGED_ASSET.exists():
+        context.log.error(f"Input file not found: {TAGGED_ASSET}")
+        return
+
+    df = pd.read_parquet(TAGGED_ASSET)
+    # mask = df['format'] == 'text'
+    # # text_rows = df[df['format'] == 'text']
+    #
+    # # Anonymize the text column
+    # def anonymize_row(row):
+    #     try:
+    #         return anonymize_text_presidio(row)
+    #     except Exception as e:
+    #         context.log.error(f"Failed to anonymize row: {e}")
+    #         return row
+    #
+    # tqdm.pandas(desc="Anonymizing text")
+    # df.loc[mask, 'text'] = df.loc[mask, 'text'].progress_apply(anonymize_row)
+
+    df_out = run_batch_process(df)
+
+    # Write the anonymized dataset to the output path
+    df_out.to_parquet(FINAL_ASSET, index=False)
+    context.log.info(f"Anonymized dataset written to {FINAL_ASSET}")
 
