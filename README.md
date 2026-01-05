@@ -2,11 +2,23 @@
 
 The data pipeline supporting the AI-ready core of the National Data Library
 
+## Table of Contents
+- [Overview](#overview)
+- [Data Pipelines Overview](#data-pipelines-overview)
+  - [Data Collection](#data-collection)
+  - [Data Refinement](#data-refinement)
+  - [Data Embedding](#data-embedding)
+- [Published Data](#published-data)
+- [Developer Instructions](#developer-instructions)
+  - [Installing dependencies](#installing-dependencies)
+  - [Install system packages](#install-system-packages)
+  - [Running the data pipeline](#running-the-data-pipeline)
+
+## Overview
+
 This project uses [Dagster](https://dagster.io/) as the orchestration framework. Two main pipelines are defined:
 - **Data Collection**: Ingests raw data from various sources, performs initial processing, and stores it in a staging area.
 - **Data Refinement**: Processes the staged data, applies transformations, and prepares it for final storage and deployment.
-
----
 
 ## Data Pipelines Overview
 
@@ -35,8 +47,6 @@ The refined data is further processed to generate embeddings, which are vectoriz
 - **Indexing**: The embeddings are stored in a FAISS index for fast similarity search. IDs order (indexes) are maintained to map back to the original data chunks.
 
 These embeddings are used for AI/ML tasks, such as similarity search, clustering, or classification. The embedding process is integrated into the **process_pipeline** and ensures the data is AI-ready.
-
----
 
 ## Published Data
 
