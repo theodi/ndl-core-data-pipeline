@@ -37,7 +37,7 @@ Each data source is processed using a rate-limited API client to ensure complian
 The **process_pipeline** takes the staged data and applies the following transformations:
 - **Cleaning**: Removes duplicates, handles missing values, standardizes formats (such as ISO 8601 dates) and removes Personal Identifiable Information (such as phone numbers and email addresses).
 - **Enrichment**: Adds metadata such as [EU Data Theme](https://op.europa.eu/en/web/eu-vocabularies/concept-scheme/-/resource?uri=http://publications.europa.eu/resource/authority/data-theme) tags, automatically detected language tags, word and token counts.
-- **Structuring**: Converts raw data into structured and easily processable formats. Converts tabular data formats like CSV, JSON, XLSX and ODS into Parquet for efficient processing. Converts PDF files into text using OCR where necessary. Extracts text from HTML content.
+- **Structuring**: Converts raw data into structured and easily processable formats. Converts structured data formats like CSV, JSON, XLSX and ODS into Parquet for efficient processing. Converts PDF files into text using OCR where necessary. Extracts text from HTML content.
 
 These steps ensure the data is consistent, reliable, and ready for downstream tasks.
 
@@ -82,7 +82,7 @@ Then, activate the virtual environment:
 
 ### Install system packages
 
-Install tesseract and poppler to your system. pdf2image requires the poppler utilities to convert PDF pages to images. On macOS you can install poppler with:
+Install `tesseract` and `poppler` to your system. `pdf2image` requires the poppler utilities to convert PDF pages to images. You can install poppler with:
 
 ```bash
 brew install tesseract
