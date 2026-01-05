@@ -40,6 +40,12 @@ The **process_pipeline** takes the staged data and applies the following transfo
 
 These steps ensure the data is consistent, reliable, and ready for downstream tasks.
 
+<p style="text-align: center;">
+  <img src="docs/images/refinement_pipeline.png"
+       width="600"
+       alt="Refinement Pipeline Architecture">
+</p>
+
 ### Data Embedding
 The refined data is further processed to generate embeddings, which are vectorized representations of the data. This involves:
 - **Text Chunking**: Text data is split into chunks using the `RecursiveCharacterTextSplitter` with a chunk size of 800 characters and an overlap of 100 characters.
