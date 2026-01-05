@@ -6,6 +6,8 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
+SOURCE_DATASET = "https://huggingface.co/datasets/hkir-dev/ndl-core-corpus/resolve/main/ndl_core_dataset.parquet"
+
 # all-MiniLM-L6-v2 has a maximum sequence length of 256 tokens (~1000 characters)
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
@@ -46,16 +48,14 @@ def process_chunks(df):
     )
 
     chunks = []
-    i = 0
     for _, row in df.iterrows():
         text = row['text']
-        i += 1
         identifier = row['identifier']
         for chunk in text_splitter.split_text(text):
-            chunks.append({"chunk": chunk, "origin_identifier": identifier})
-        # TODO for testing only - remove in production
-        # if i > 200:
-        #     break  # Limit to first 200 rows for processing
+            chunks.append({"chunk": chunk,
+                           "origin_identifier": identifier,
+                           "language": row.get("language", "en"),
+                           "source_dataset": SOURCE_DATASET})
 
     return pd.DataFrame(chunks)
 

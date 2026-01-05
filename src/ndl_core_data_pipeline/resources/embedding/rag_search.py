@@ -119,8 +119,11 @@ def filter_results_adaptive(D, I, sensitivity=2.5, min_step=0.05):
     return np.array([filtered_d]), np.array([filtered_i])
 
 if __name__ == "__main__":
-    query = "An enduring covenant between the people of the United Kingdom,"
+    # query = "An enduring covenant between the people of the United Kingdom,"
     # query = "How much can I save with Tax-Free Childcare."
+    # query = "What conditions must a site satisfy to be granted excluded disposal site status?"
+    query = "What percentage of all working days lost in 2022 were due to respiratory conditions?"
+    # query = "In which year between 2011 and 2023 were excess deaths highest for those aged 65 and over?"
     # query = "Who is Gen Kitchen."
     results = search(query, n=15)
     for res in results:
