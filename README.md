@@ -42,7 +42,7 @@ These steps ensure the data is consistent, reliable, and ready for downstream ta
 
 <p style="text-align: center;">
   <img src="docs/images/refinement_pipeline.png"
-       width="600"
+       width="883"
        alt="Refinement Pipeline Architecture">
 </p>
 
