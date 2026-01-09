@@ -1,3 +1,5 @@
+import os
+import shutil
 from dagster import asset
 import pandas as pd
 from pathlib import Path
@@ -117,6 +119,11 @@ def create_lancedb_index():
         }
         lancedb_data.append(record)
 
+    if os.path.exists(LANCEDB_PATH):
+        print(f"🗑️  Deleting old database folder: {LANCEDB_PATH}...")
+        shutil.rmtree(LANCEDB_PATH)
+    os.makedirs(LANCEDB_PATH, exist_ok=True)
+
     # Create LanceDB database and table
     print(f"Creating LanceDB at: {LANCEDB_PATH}")
     db = lancedb.connect(str(LANCEDB_PATH))
@@ -128,7 +135,7 @@ def create_lancedb_index():
         print(f"Dropped existing table: {table_name}")
 
     # Create table with data
-    table = db.create_table(table_name, lancedb_data)
+    table = db.create_table(table_name, lancedb_data, mode="overwrite")
     print(f"Created table '{table_name}' with {len(lancedb_data)} records")
 
     # Create vector search index for faster similarity search
@@ -137,6 +144,7 @@ def create_lancedb_index():
         metric="cosine",
         num_partitions=256,
         num_sub_vectors=96,
+        replace=True
     )
     print("Vector search index created successfully")
 
