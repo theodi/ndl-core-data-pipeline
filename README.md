@@ -57,7 +57,7 @@ These embeddings are used for AI/ML tasks, such as similarity search, clustering
 
 ## Published Data
 
-Cleaned datasets and their embeddings are published to Hugging Face for access by downstream applications. The published data and their details can be found on the [National Data Library Hugging Face collection](https://huggingface.co/collections/hkir-dev/ndl-core-collection) page.
+Cleaned datasets and their embeddings are published to Hugging Face for access by downstream applications. The published data and their details can be found on the [National Data Library Hugging Face collection](https://huggingface.co/collections/theodi/ndl-core-collection) page.
 
 ## Developer Instructions
 
