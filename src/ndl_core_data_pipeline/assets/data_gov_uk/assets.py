@@ -21,8 +21,9 @@ from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_t
 # - All License types: https://ckan.publishing.service.gov.uk/api/3/action/package_search?facet.field=[%22license_id%22]&rows=0
 # - List the most recent N public "government" category datasets: https://ckan.publishing.service.gov.uk/api/action/package_search?fq=theme-primary:government%20AND%20license_id:(uk-ogl%20OR%20cc-by)&sort=metadata_created%20desc&rows=10
 
-RESULTS_COUNT_PER_CATEGORY = 20
-RESULTS_COUNT_FOR_ENVIRONMENT = 100
+RESULTS_COUNT_PER_CATEGORY = 250
+RESULTS_COUNT_FOR_ENVIRONMENT = 250
+OFFSET = 0
 
 PUBLIC_LICENCES = ["ogl", "uk-ogl", "OGL-UK-3.0", "cc-by", "other-pd", "other-open", "odc-pddl", "odc-odbl", "odc-by", "cc-nc", "other-nc", "cc-zero"]
 public_license_filter = "license_id:(" + " OR ".join(PUBLIC_LICENCES) + ")"
@@ -30,8 +31,10 @@ public_license_filter = "license_id:(" + " OR ".join(PUBLIC_LICENCES) + ")"
 # Dynamic partitions for categories
 data_gov_categories = DynamicPartitionsDefinition(name="data_gov_categories")
 
-RAW_DATA_PATH = "data/raw/data_gov_uk"
+RAW_DATA_PATH = "data/raw/data_gov_uk_2"
 os.makedirs(RAW_DATA_PATH, exist_ok=True)
+
+MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25MB limit for file downloads
 
 NETWORK_RETRY_POLICY = RetryPolicy(
     max_retries=3,
@@ -92,14 +95,17 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
     target_dir = os.path.join(RAW_DATA_PATH, safe_category)
     os.makedirs(target_dir, exist_ok=True)
 
+    source = "data.gov.uk"
     results_count = RESULTS_COUNT_PER_CATEGORY
     if category == "environment":
+        source = "environment.data.gov.uk"
         results_count = RESULTS_COUNT_FOR_ENVIRONMENT
 
     params = {
         "fq": f"theme-primary:{category} AND {public_license_filter}",
         "sort": "metadata_created desc",
         "rows": results_count,
+        "start": OFFSET,
     }
 
 
@@ -125,7 +131,7 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
         meta: Dict[str, Any] = {
             "title": pkg.get("title") or pkg.get("name") or pkg_id,
             "description": pkg.get("notes"),
-            "source": "data.gov.uk",
+            "source": source,
             "creator": org.get("title") or org.get("name", ""),
             "collection_time": now_iso8601_utc(),
             "open_type": "Open Government",
@@ -169,6 +175,17 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
             if not res_url:
                 context.log.warning(f"Package {pkg_id} resource #{i} has no URL")
                 continue
+
+            # Skip large files based on CKAN size metadata
+            res_size = res.get("size")
+            if res_size:
+                try:
+                    if int(res_size) > MAX_FILE_SIZE_BYTES:
+                        context.log.info(f"Skipping resource {res_id} from package {pkg_id}: size {res_size} bytes exceeds 30MB limit")
+                        continue
+                except (ValueError, TypeError):
+                    pass  # size field not a valid number, proceed with download
+
             context.log.info(f"Downloading resource {res_id} from package {pkg_id}: {res_url}")
 
             # Download using the API client; let exceptions propagate to fail the asset

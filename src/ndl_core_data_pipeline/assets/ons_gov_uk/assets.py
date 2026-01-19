@@ -18,9 +18,9 @@ from dagster import asset, AssetExecutionContext, RetryPolicy, Backoff, Jitter
 from ndl_core_data_pipeline.resources.api_client import RateLimitedApiClient
 from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_to_iso8601_utc
 
-RESOURCES_PER_TOPIC = 15
+RESOURCES_PER_TOPIC = 1000
 
-RAW_DATA_PATH = "data/raw/ons_gov_uk"
+RAW_DATA_PATH = "data/raw/ons_gov_uk_2"
 os.makedirs(RAW_DATA_PATH, exist_ok=True)
 
 TOPICS_URL = "https://api.beta.ons.gov.uk/v1/topics"
@@ -75,8 +75,10 @@ def fetch_resources_for_topic(api: RateLimitedApiClient, topic_id: str, context:
     params = {
         "topics": topic_id,
         "content_type": "timeseries",
-        "sort": "last_updated",
+        "sort": "release_date",
+        # "sort": "last_updated",
         "limit": limit,
+        "offset": 3000,
     }
     try:
         data = api.get(SEARCH_URL, params=params)
