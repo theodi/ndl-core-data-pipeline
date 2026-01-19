@@ -21,8 +21,8 @@ from ndl_core_data_pipeline.resources.time_utils import now_iso8601_utc, parse_t
 # - All License types: https://ckan.publishing.service.gov.uk/api/3/action/package_search?facet.field=[%22license_id%22]&rows=0
 # - List the most recent N public "government" category datasets: https://ckan.publishing.service.gov.uk/api/action/package_search?fq=theme-primary:government%20AND%20license_id:(uk-ogl%20OR%20cc-by)&sort=metadata_created%20desc&rows=10
 
-RESULTS_COUNT_PER_CATEGORY = 250
-RESULTS_COUNT_FOR_ENVIRONMENT = 250
+RESULTS_COUNT_PER_CATEGORY = 100
+RESULTS_COUNT_FOR_ENVIRONMENT = 100
 OFFSET = 0
 
 PUBLIC_LICENCES = ["ogl", "uk-ogl", "OGL-UK-3.0", "cc-by", "other-pd", "other-open", "odc-pddl", "odc-odbl", "odc-by", "cc-nc", "other-nc", "cc-zero"]
@@ -197,6 +197,17 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
                 context.log.warning(f"Download returned no file for resource {res_url} (package {pkg_id}), skipping")
                 continue
 
+            # Check actual file size after download (CKAN metadata may be inaccurate or missing)
+            if check_and_remove_oversized_file(
+                file_path=saved_path,
+                metadata_path=None,  # Metadata not written yet
+                max_size_bytes=MAX_FILE_SIZE_BYTES,
+                context=context,
+                resource_id=res_id,
+                package_id=pkg_id,
+            ):
+                continue  # File was oversized and removed, skip to next resource
+
             # Update metadata with saved file info
             try:
                 abs_raw_base = os.path.abspath(RAW_DATA_PATH)
@@ -229,3 +240,64 @@ def data_gov_process_category(context: AssetExecutionContext, api_data_gov: Rate
 
     context.add_output_metadata({"packages_found": len(results), "packages_processed": processed})
     return saved_packages
+
+def check_and_remove_oversized_file(
+    file_path: str,
+    metadata_path: str | None,
+    max_size_bytes: int,
+    context: AssetExecutionContext,
+    resource_id: str,
+    package_id: str,
+) -> bool:
+    """
+    Check if a downloaded file exceeds the maximum allowed size and remove it if so.
+
+    This function verifies the actual file size on disk after download, since CKAN metadata
+    may not always accurately report the file size (or may be missing entirely). If the file
+    exceeds the specified limit, both the data file and its associated metadata file (if present)
+    are removed to prevent storing oversized files.
+
+    Args:
+        file_path: Absolute path to the downloaded data file.
+        metadata_path: Absolute path to the metadata JSON file (can be None if not yet written).
+        max_size_bytes: Maximum allowed file size in bytes.
+        context: Dagster asset execution context for logging.
+        resource_id: CKAN resource identifier (for logging purposes).
+        package_id: CKAN package identifier (for logging purposes).
+
+    Returns:
+        True if the file was oversized and removed, False if the file is within limits.
+    """
+    try:
+        actual_size = os.path.getsize(file_path)
+    except OSError as exc:
+        context.log.warning(
+            f"Could not determine file size for {file_path} (resource {resource_id}, package {package_id}): {exc}"
+        )
+        return False
+
+    if actual_size <= max_size_bytes:
+        return False
+
+    # File exceeds size limit - remove it
+    context.log.info(
+        f"Downloaded file exceeds size limit: {file_path} is {actual_size} bytes "
+        f"(limit: {max_size_bytes} bytes). Removing file and metadata for resource {resource_id} (package {package_id})."
+    )
+
+    # Remove the data file
+    try:
+        os.remove(file_path)
+        context.log.info(f"Removed oversized data file: {file_path}")
+    except OSError as exc:
+        context.log.warning(f"Failed to remove oversized data file {file_path}: {exc}")
+
+    # Remove the metadata file if it exists
+    if metadata_path and os.path.exists(metadata_path):
+        try:
+            os.remove(metadata_path)
+            context.log.info(f"Removed metadata file for oversized resource: {metadata_path}")
+        except OSError as exc:
+            context.log.warning(f"Failed to remove metadata file {metadata_path}: {exc}")
+
+    return True
