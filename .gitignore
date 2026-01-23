@@ -204,3 +204,5 @@ __marimo__/
 
 .tmp_dagster_*
 /data/
+/data_v1/
+/target_v1/

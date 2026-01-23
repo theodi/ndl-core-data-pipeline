@@ -26,6 +26,10 @@ def anonymize_text(text: str, language: str = "en") -> str:
     if not isinstance(text, str) or not text.strip():
         return text
 
+    if len(text) >= 1000000:
+        # Presidio can struggle with very large texts; skip anonymization
+        return text
+
     results = analyzer.analyze(text=text,
                                language=language,
                                entities=["EMAIL_ADDRESS", "PHONE_NUMBER"],

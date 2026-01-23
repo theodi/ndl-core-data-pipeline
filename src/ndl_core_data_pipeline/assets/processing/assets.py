@@ -42,6 +42,7 @@ BATCH_SIZE = 1000  # number of metadata files per partition; adjust as needed
 CURRENT_DIR = Path(__file__).parent
 TARGET_DIR = (CURRENT_DIR / "../../../../target").resolve()
 DATA_DIR = (CURRENT_DIR / "../../../../data").resolve()
+# DATA_DIR = (CURRENT_DIR / "../../../../data/raw/hansard_gov_uk").resolve()
 PROCESSED_DIR = TARGET_DIR / "processed"
 STRUCTURED_DIR = TARGET_DIR / "structured"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -54,7 +55,7 @@ FINAL_ASSET = TARGET_DIR / "ndl_core_dataset.parquet"
 
 # Build a static partitions definition based on the number of deduplicated files (if available).
 # This allows running individual partitions (batches) and supports backfills by rerunning failed partition keys.
-
+# Be careful!! Best to restart Dagster after deduplicate_records asset has run to pick up the correct partitioning.
 def _build_partitions_def(batch_size: int = BATCH_SIZE) -> StaticPartitionsDefinition:
     if NON_DUPLICATE_FILES.exists():
         try:
@@ -70,7 +71,7 @@ def _build_partitions_def(batch_size: int = BATCH_SIZE) -> StaticPartitionsDefin
         except Exception:
             return StaticPartitionsDefinition(["0"])
     # if file not present yet (e.g., first run), create a reasonable default set of partitions
-    default_parts = 100
+    default_parts = 1000
     return StaticPartitionsDefinition([str(i) for i in range(default_parts)])
 
 PARTITIONS_DEF = _build_partitions_def()
@@ -88,7 +89,7 @@ def deduplicated_records(context: AssetExecutionContext):
     :param context:
     :return:
     """
-    deduplicate_folder()
+    deduplicate_folder(DATA_DIR)
 
 @asset(
     group_name="processing",
@@ -141,6 +142,9 @@ def format_records(context: AssetExecutionContext):
     failed_meta: List[str] = []
     per_meta_exceptions = 0
     for meta_path in final_meta_files:
+        if "hansard_gov_uk/scrapedxml" in str(meta_path):
+            # skip XML folder, we will process json version
+            continue
         try:
             index = index + 1
             print(f"Processing {index} / {len(final_meta_files)} - {meta_path}")
@@ -155,16 +159,13 @@ def format_records(context: AssetExecutionContext):
             data_file = _find_associated_data_file(meta_path)
             data_format = "text"
 
-            fmt = (meta.get("format") or "").lower()
+            fmt = meta.get("format", "").lower()
             # If not provided, try to infer format from associated data file
             if not fmt and data_file:
                 fmt = data_file.suffix.lower().lstrip('.')
 
             if fmt not in SUPPORTED_FORMATS:
                 stats_unsupported[fmt] = stats_unsupported.get(fmt, 0) + 1
-                continue
-            if "hansard_gov_uk/scrapedxml" in str(meta_path):
-                # skip XML folder, we will process json version
                 continue
 
             stats[fmt] = stats.get(fmt, 0) + 1
@@ -382,8 +383,6 @@ def filter_supported_files(file_paths: list[str]) -> list[Path]:
             final_meta_files.append(p)
     return final_meta_files
 
-
-# New aggregation asset: combines per-partition parquet files into the single ndl_core_dataset_aggregated.parquet
 @asset(group_name="processing", non_argument_deps={"format_records"})
 def aggregate_records(context: AssetExecutionContext):
     """
