@@ -349,9 +349,17 @@ def _find_associated_data_file(meta_path: Path) -> Optional[Path]:
 def _convert_structured_to_parquet(data_path: Path) -> Optional[Path]:
     """Convert structured input (json/csv/xlsx/ods) into a parquet file placed in DATA_DIR/structured with a UUID name.
     Returns the relative path (to DATA_DIR) Path object of written parquet or None on failure.
+
+    For structured files, creates a subdirectory structure to avoid exceeding Hugging Face's
+    10,000 files per directory limit. Files are organized into subdirectories based on UUID prefix.
     """
-    out_name = f"{uuid4()}.parquet"
-    out_path = STRUCTURED_DIR / out_name
+    file_uuid = str(uuid4())
+    # Use first 2 characters of UUID as subdirectory to distribute files (256 possible subdirs)
+    subdir = file_uuid[:2]
+    out_dir = STRUCTURED_DIR / subdir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_name = f"{file_uuid}.parquet"
+    out_path = out_dir / out_name
 
     path = None
     if data_path.suffix.lower() == ".json":
@@ -359,7 +367,7 @@ def _convert_structured_to_parquet(data_path: Path) -> Optional[Path]:
     if data_path.suffix.lower() == ".csv":
         path = convert_csv_to_parquet(data_path, out_path)
     if data_path.suffix.lower() in {".xlsx", ".xls", ".ods"}:
-        path = convert_spreadsheet_to_parquet(data_path, STRUCTURED_DIR, uuid_names=True)
+        path = convert_spreadsheet_to_parquet(data_path, out_dir, file_uuid, uuid_names=True)
     if path:
         return path
     print(f"Cannot convert {data_path} to parquet")

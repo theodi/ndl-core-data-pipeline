@@ -105,12 +105,13 @@ def _process_dataframe_and_write(df_raw: pd.DataFrame, out_path: Path) -> Path:
     return out_path
 
 
-def convert_spreadsheet_to_parquet(input_path: str | Path, output_path: str | Path, uuid_names: bool=False) -> Path:
+def convert_spreadsheet_to_parquet(input_path: str | Path, output_path: str | Path, file_uuid: str, uuid_names: bool=False) -> Path:
     """Convert spreadsheet file to parquet(s).
 
     Parameters
     - input_path: path to .xlsx or .ods file
     - output_path: path to output file, or directory when multiple sheets
+    - file_uuid: UUID string to use for naming (folder name if multiple sheets, file name when single sheet) when uuid_names is True
     - uuid_names: if True, appends a UUID to output_path to avoid name collisions also gives uuid names to data files.
 
     Returns Path to written parquet file or directory containing per-sheet
@@ -141,7 +142,7 @@ def convert_spreadsheet_to_parquet(input_path: str | Path, output_path: str | Pa
         # Treat output_parquet as directory path
         out_dir = output_path
         if uuid_names:
-            out_dir = Path(output_path) / str(uuid.uuid4())
+            out_dir = Path(output_path) / str(file_uuid)
         out_dir.mkdir(parents=True, exist_ok=True)
 
         written_paths = []
@@ -163,7 +164,7 @@ def convert_spreadsheet_to_parquet(input_path: str | Path, output_path: str | Pa
         if not uuid_names:
             safe_name = _safe_sheet_filename(sheet_name)
         else:
-            safe_name = str(uuid.uuid4())
+            safe_name = str(file_uuid)
         out_file = output_path / f"{safe_name}.parquet"
         _process_dataframe_and_write(df, out_file)
         return out_file
