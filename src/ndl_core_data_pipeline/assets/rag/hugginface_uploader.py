@@ -7,7 +7,7 @@ TARGET_DIR = (CURRENT_DIR / "../../../../target").resolve()
 LOCAL_FOLDER = "lancedb_search_index"
 LANCEDB_PATH = TARGET_DIR / LOCAL_FOLDER
 
-REPO_ID = "hkir-dev/ndl-core-rag-index"
+REPO_ID = "theodi/ndl-core-rag-index"
 
 # 1. Verify the Manifest Exists (Prove it to yourself!)
 manifest_path = f"{LANCEDB_PATH}/ndl_core_datasets.lance/_latest.manifest"
