@@ -17,7 +17,7 @@ def delete_all_except_readme():
     repo_files = api.list_repo_files(repo_id=REPO_ID, repo_type="dataset")
 
     # Filter out README.md and .gitattributes (keep these)
-    files_to_delete = [f for f in repo_files if f not in ["README.md", ".gitattributes"]]
+    files_to_delete = [f for f in repo_files if f not in ["README.md", ".gitattributes", ".gitignore"]]
 
     if not files_to_delete:
         print("No files to delete (only README.md found).")
@@ -48,10 +48,9 @@ def upload_structured_data():
 
     api.upload_folder(
         folder_path=STRUCTURED_PATH,
-        path_in_repo=STRUCTURED_FOLDER,
         repo_id=REPO_ID,
         repo_type="dataset",
-        commit_message="Upload structured data files"
+        commit_message="Upload structured data files",
     )
 
     print("\n🎉 Upload Complete!")
@@ -66,8 +65,9 @@ def main():
     # Step 1: Delete all existing content except README.md
     delete_all_except_readme()
 
+    # THis operation is extremely slow, clone the reo and commit several folders at once
     # Step 2: Upload new structured data
-    upload_structured_data()
+    # upload_structured_data()
 
     print("-" * 50)
     print("✅ Process complete!")
